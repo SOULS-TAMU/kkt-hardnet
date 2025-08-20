@@ -16,14 +16,14 @@ This repository contains the official implementation of KKT-Hardnet.
 | **Op_problems/** | Directory that contains all optimization test problems/case studies. Each problem has its own folder containing `problem.json`, `model_config.json`, and dataset. |
 | **dataset/** | Utility functions for loading, processing and batching datasets. |
 | **model/** | Implementation of the neural network models (MLP, PINN, KKT-HardNet, Newton layers, etc.). |
-| **run/** | Wrapper scripts that orchestrate the model training and evaluation for a given problem. |
+| **run/** | Wrapper scripts that modularize the model training and evaluation for a given problem. |
 | **main.py** | Entrypoint Python script for running the code manually. |
 | **requirements.txt** | List of required Python libraries and versions. |
 | **runner.sh** | Shell script to launch experiments with a single command. |
-| **create_env.sh** | Shell script to create python environment with a single command. |
+| **create_env.sh** | Shell script to create Python environment with a single command. |
 | **installer.sh** | Shell script to install packages with a single command. |
 | **runner.bat** | Batch script to launch experiments with a single command. |
-| **create_env.bat** | Batch script to create python environment with a single command. |
+| **create_env.bat** | Batch script to create a Python environment with a single command. |
 | **installer.bat** | Batch script to install packages with a single command. |
 
 ---
