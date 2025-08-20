@@ -12,7 +12,7 @@ This repository contains the official implementation of KKT-Hardnet.
 
 | Directory / File | Description |
 |------------------|-------------|
-| **KKT/** | Symbolic generation of the full KKT (Karush-Kuhn-Tucker) system for optimization problems. |
+| **KKT/** | Symbolic generation of the full Karush-Kuhn-Tucker (KKT) system for optimization problems. |
 | **Op_problems/** | Directory that contains all optimization test problems/case studies. Each problem has its own folder containing `problem.json`, `model_config.json`, and dataset. |
 | **dataset/** | Utility functions for loading, processing and batching datasets. |
 | **model/** | Implementation of the neural network models (MLP, PINN, KKT-HardNet, Newton layers, etc.). |
