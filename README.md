@@ -186,11 +186,12 @@ After a successful run, the following files are saved in `./Op_problems/<your-pr
 ⚠️ Please cite our work if you use this code in your research.
 Citation formats are provided below.
 
-```
+
+```bibtex
 @article{iftakher2025physics,
   title  = {Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints},
   author = {Iftakher, Ashfaq and Golder, Rahul and Nath Roy, Bimol and Hasan, MM},
   journal= {arXiv preprint arXiv:2507.08124},
   year   = {2025}
 }
-```
+
