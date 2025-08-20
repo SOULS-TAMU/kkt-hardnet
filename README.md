@@ -157,6 +157,9 @@ After a successful run, the following files are saved in `./Op_problems/<your-pr
 > - Replace `{model}` with `mlp`, `pinn`, or `kkt_hardnet` as appropriate (e.g., `mlp_losses.npz`).
 
 ---
+> **To run the experiments shown in the article**
+> Go to OP_problems folder and find the corresponding example files. 
+---
 
 ⚠️ Please cite our work if you use this code in your research.
 Citation formats are provided below.
