@@ -99,7 +99,7 @@ This file controls the training and solver configuration. The following keys are
   - Newton/KKT settings: `newton_tol`, `max_newton_iter`, `newton_step_length`, etc.
   - Checkpoints: configure how often to save models (`save_checkpoint_iter`) and paths for reloading.
 
-Keep all the files in one folder inside the `OP_problems` folder.
+Keep all the files in one folder inside the `OP_problems` folder. For any confusion please check the given example problems inside the `Op_problems` folder.
 
 ---
 
