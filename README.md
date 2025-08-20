@@ -3,8 +3,8 @@
 **Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints**
 
 This repository contains the official implementation of our paper  
-**“Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints”**.  
-The full paper is available on arXiv: https://arxiv.org/abs/2507.08124.
+📄 **Paper:** [Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints](https://arxiv.org/abs/2507.08124)
+
 
 ---
 
