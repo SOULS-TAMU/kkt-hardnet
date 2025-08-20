@@ -89,20 +89,23 @@ This file controls the training and solver configuration. The following keys are
 # 1. Clone the repository
 git clone https://github.com/SOULS-TAMU/kkt-hardnet
 
-# 2. Create and activate a virtual environment (default: "venv")
+# 2. Go to the clone directory
+cd kkt-hardnet
+
+# 3. Create and activate a virtual environment (default: "venv")
 bash create_env.sh --name "<environment_name>"
 
-# 3. Install all dependencies (default: requirements.txt)
+# 4. Install all dependencies (default: requirements.txt)
 bash installer.sh --filename "<requirements_file>"
 
-# 4. Create a new problem directory
+# 5. Create a new problem directory
 mkdir ./Op_problems/<your-problem>
 
-# 5. Add 'problem.json' and 'model_config.json' into the new directory
-# 6. Add your dataset file (CSV) and reference it in 'problem.json'
-# 7. Update 'runner.sh' to include your problem directory
+# 6. Add 'problem.json' and 'model_config.json' into the new directory
+# 7. Add your dataset file (CSV) and reference it in 'problem.json'
+# 8. Update 'runner.sh' to include your problem directory
 
-# 8. Run the model
+# 9. Run the model
 bash runner.sh
 ```
 
@@ -112,20 +115,23 @@ bash runner.sh
 # 1. Clone the repository
 git clone https://github.com/SOULS-TAMU/kkt-hardnet
 
-# 2. Create and activate a virtual environment (default: "venv")
+# 2. Go to the clone directory
+cd kkt-hardnet
+
+# 3. Create and activate a virtual environment (default: "venv")
 create_env.bat --name "<environment_name>"
 
-# 3. Install all dependencies (default: requirements.txt)
+# 4. Install all dependencies (default: requirements.txt)
 installer.bat --filename "<requirements_file>"
 
-# 4. Create a new problem directory
+# 5. Create a new problem directory
 mkdir .\Op_problems\<your-problem>
 
-# 5. Add 'problem.json' and 'model_config.json' into the new directory
-# 6. Add your dataset file (CSV) and reference it in 'problem.json'
-# 7. Update 'runner.bat' to include your problem directory
+# 6. Add 'problem.json' and 'model_config.json' into the new directory
+# 7. Add your dataset file (CSV) and reference it in 'problem.json'
+# 8. Update 'runner.bat' to include your problem directory
 
-# 8. Run the model
+# 9. Run the model
 runner.bat
 ```
 
