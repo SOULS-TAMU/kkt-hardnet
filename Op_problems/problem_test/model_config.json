@@ -1,0 +1,21 @@
+{
+    "num_epochs" : 20,
+    "lr" : 1e-3,
+    "eta": 1e-3,
+    "hidden_dim": 64,
+    "pinn_reg_factor": 1,
+    "model_loss_tolerance": 1e-6,
+    "kkt_formulation_index":1,
+    "newton_step_length": 1.0,
+    "newton_tol": 1e-6,
+    "newton_reg_factor": 1e-6,
+    "max_newton_iter": 100,
+    "batch_size": 64,
+    "train_split_size": 0.8,
+    "val_split_size": 0.0,
+    "test_split_size": 0.2,
+    "save_checkpoint_iter": 50,
+    "mlp_checkpoint_path": "",
+    "pinn_checkpoint_path": "",
+    "kkt_hardnet_checkpoint_path": ""
+}
