@@ -13,7 +13,6 @@ The full paper is available on arXiv: https://arxiv.org/abs/2507.08124.
 | Directory / File | Description |
 |------------------|-------------|
 | **KKT/** | Symbolic generation of the full KKT (Karush-Kuhn-Tucker) system for optimization problems. |
-| **Matlab_data/** | Scripts and utilities to generate datasets for PDE-based problems using numerical solvers. |
 | **Op_problems/** | Directory that contains all optimization test problems/case studies. Each problem has its own folder containing `problem.json`, `model_config.json`, and dataset. |
 | **dataset/** | Utility functions for loading, processing and batching datasets. |
 | **model/** | Implementation of the neural network models (MLP, PINN, KKT-HardNet, Newton layers, etc.). |
@@ -23,6 +22,9 @@ The full paper is available on arXiv: https://arxiv.org/abs/2507.08124.
 | **runner.sh** | Shell script to launch experiments with a single command. |
 | **create_env.sh** | Shell script to create python environment with a single command. |
 | **installer.sh** | Shell script to install packages with a single command. |
+| **runner.bat** | Batch script to launch experiments with a single command. |
+| **create_env.bat** | Batch script to create python environment with a single command. |
+| **installer.bat** | Batch script to install packages with a single command. |
 
 ---
 
@@ -126,6 +128,29 @@ mkdir .\Op_problems\<your-problem>
 # 8. Run the model
 runner.bat
 ```
+
+---
+
+## ✅ Checking the Results
+
+After a successful run, the following files are saved in `./Op_problems/<your-problem>`:
+
+| Directory / File                      | Description |
+|--------------------------------------|-------------|
+| **checkpoints/**                     | Directory containing the best-performing checkpoint(s) for each model; useful for resuming training or transfer learning. |
+| **{model}\_losses.npz**              | Compressed NumPy archive with per-epoch loss curves (e.g., data loss, physics loss and absolute violation). |
+| **{model}\_model.pth**               | PyTorch `state_dict` of the trained model (network weights and any layer parameters used by the method). |
+| **{model}\_mse_mape.txt**            | Plain-text summary of MSE, MAPE, Physics Loss and Absolute Violation (typically reported for train/test splits). |
+| **{model}\_predictions.csv**         | CSV of model predictions for evaluation/plotting. |
+| **all_models_absolute_violation_plot.png** | Comparison plot of maximum absolute constraint violation versus epochs across all models. |
+| **all_models_data_loss_plot.png**    | Comparison plot of supervised/data loss versus epochs for all models. |
+| **all_models_physics_loss_plot.png** | Comparison plot of physics loss (norm of the constraint violation) versus epochs. |
+| **all_models_rmse_and_violation.png**| Combined figure showing RMSE alongside constraint violation curves for all models. |
+
+> **Notes**
+> - Replace `{model}` with `mlp`, `pinn`, or `kkt_hardnet` as appropriate (e.g., `mlp_losses.npz`).
+
+---
 
 ⚠️ Please cite our work if you use this code in your research.
 Citation formats are provided below.
