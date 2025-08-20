@@ -1,0 +1,16 @@
+Variables:
+
+Input: A, B, x, y
+Output: m, P_x, P_y, C_x, C_y
+
+Constraints:
+
+1. P_x + P_y - A - B == 0
+2. x - P_x - C_x == 0
+3. y - P_y - C_y == 0
+4. m*P_x + m*P_y -3*A - B == 0
+5. m*P_x + 2*C_x - 2.5*x <= 0
+6. m*P_y + 2*C_y - 1.5*y <= 0
+
+Ref: Handbook of Test Problems in Local and Global Optimization (5.2.2)
+https://doi.org/10.1007/978-1-4757-3040-1

@@ -1,0 +1,14 @@
+{
+  "parameters": ["x1", "x2", "x3"],
+  "variables": ["y1", "y2", "y3", "y4", "y5","y6", "y7", "y8", "y9"],
+  "objective": "",
+  "constraints": [
+    "x1 + x2 == y1 + y2",
+    "x1*0.697616946 == y1*y3 + y2*y6",
+    "x1*0.302383054 == y1*y4 + y2*y7",
+    "y3 + y4 + y5 == 1",
+    "y6 + y7 + y8 == 1",
+    "x3*y1 == y9"
+  ],
+  "file_name": "ED_Col_Data.csv"
+}

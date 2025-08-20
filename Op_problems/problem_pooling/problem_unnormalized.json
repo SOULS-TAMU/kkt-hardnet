@@ -1,0 +1,14 @@
+{
+  "parameters": ["x1", "x2", "x3", "x4", "y1_data", "y2_data", "y3_data", "y4_data", "y5_data"],
+  "variables": ["y1", "y2", "y3", "y4", "y5"],
+  "objective": "(y1 - y1_data)**2 + (y2 - y2_data)**2 + (y3 - y3_data)**2 + (y4 - y4_data)**2 + (y5 - y5_data)**2",
+  "constraints": [
+    "y2 + y3 - x1 - x2 == 0",
+    "x3 - y2 - y4 == 0",
+    "x4 - y3 - y5 == 0",
+    "y1*y2 + y1*y3 - 3*x1 - x2 == 0",
+    "y1*y2 + 2*y4 - 2.5*x3 <= 0",
+    "y1*y3 + 2*y5 - 1.5*x4 <= 0"
+  ],
+  "file_name": "Pooling_dataset.csv"
+}
