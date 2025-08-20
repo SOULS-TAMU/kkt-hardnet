@@ -87,7 +87,7 @@ This file controls the training and solver configuration. The following keys are
 
 ```bash
 # 1. Clone the repository
-git clone <repository_name>
+git clone https://github.com/SOULS-TAMU/kkt-hardnet
 
 # 2. Create and activate a virtual environment (default: "venv")
 bash create_env.sh --name "<environment_name>"
@@ -110,7 +110,7 @@ bash runner.sh
 
 ```powershell
 # 1. Clone the repository
-git clone <repository_name>
+git clone https://github.com/SOULS-TAMU/kkt-hardnet
 
 # 2. Create and activate a virtual environment (default: "venv")
 create_env.bat --name "<environment_name>"
