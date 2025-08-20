@@ -1,0 +1,9 @@
+==================== Train Metrices ====================
+mse train = 51.90657791137696
+absolute violation train = 319.26636108398435
+norm violation train = 180.66931091308595
+
+==================== Test Metrices =====================
+mse test = 67.53866668701171
+absolute violation test = 312.73416625976563
+norm violation test = 176.8311340332031
