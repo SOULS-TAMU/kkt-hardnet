@@ -104,7 +104,7 @@ mkdir ./Op_problems/<your-problem>
 bash runner.sh
 ```
 
-### Windows
+### Windows Command Terminal
 
 ```powershell
 # 1. Clone the repository
@@ -121,10 +121,10 @@ mkdir .\Op_problems\<your-problem>
 
 # 5. Add 'problem.json' and 'model_config.json' into the new directory
 # 6. Add your dataset file (CSV) and reference it in 'problem.json'
-# 7. Update 'runner.sh' to include your problem directory
+# 7. Update 'runner.bat' to include your problem directory
 
-# 8. Run the model (requires Git Bash or WSL)
-bash runner.sh
+# 8. Run the model
+runner.bat
 ```
 
 ⚠️ Please cite our work if you use this code in your research.
