@@ -79,7 +79,7 @@ This file controls the training and solver configuration. The following keys are
 
 ---
 
-## 🚀 How to Run
+## 🚀 How to Run (Use the Terminal)
 
 ### Linux / macOS
 
@@ -104,7 +104,7 @@ mkdir ./Op_problems/<your-problem>
 bash runner.sh
 ```
 
-### Windows Command Terminal
+### Windows
 
 ```powershell
 # 1. Clone the repository
