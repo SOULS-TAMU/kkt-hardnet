@@ -19,54 +19,14 @@ class NewtonModel(nn.Module):
         # ===============================
         self.symbolic_vars = variables + parameters
         self.required_derivatives = []
-        self.has_differential_terms = False
-        self.max_diff_order = 0
-
-        self.diff_variable_names = []
-        self.non_diff_variable_names = []
-
-        for name in variables:
-            name = str(name)
-            # Match dy1dx1 (first-order)
-            if re.fullmatch(r"dy\d+dx\d+", name):
-                self.has_differential_terms = True
-                self.diff_variable_names.append(name)
-                y_idx, x_idx = re.findall(r"\d+", name)
-                self.required_derivatives.append({
-                    'target': f'y{y_idx}',
-                    'order': 1,
-                    'wrt': [f'x{x_idx}'],
-                    'symbol': name
-                })
-                self.max_diff_order = max(self.max_diff_order, 1)
-
-            # Match higher-order e.g. d2y3dx1dx2
-            elif match := re.fullmatch(r"d(\d+)y(\d+)dx(\d+)(dx\d+)*", name):
-                self.has_differential_terms = True
-                order = int(match.group(1))
-                y_idx = int(match.group(2))
-                dx_terms = re.findall(r"dx(\d+)", name)
-                self.diff_variable_names.append(name)
-                self.required_derivatives.append({
-                    'target': f'y{y_idx}',
-                    'order': order,
-                    'wrt': [f'x{i}' for i in dx_terms],
-                    'symbol': name
-                })
-                self.max_diff_order = max(self.max_diff_order, order)
-
-            else:
-                self.non_diff_variable_names.append(name)
-
-        self.num_diff_terms = len(self.diff_variable_names)
 
         # ===============================
-        # Define the neural network (only for non-differential vars)
+        # Define the neural network
         # ===============================
         self.nn = nn.Sequential(
             nn.Linear(input_dim, self.hidden_dims),
             nn.ReLU(),
-            nn.Linear(self.hidden_dims, len(self.non_diff_variable_names)),  # exclude differential vars
+            nn.Linear(self.hidden_dims, len(variables)),  # exclude differential vars
             # nn.ReLU()
         )
 

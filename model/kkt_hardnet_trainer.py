@@ -42,45 +42,6 @@ class KKT_HardNet_Trainer:
         self.test_abs_violation = []
         self.epoch_times = []
 
-        # # ===============================
-        # # Differential Term Detection
-        # # ===============================
-        # self.has_differential_terms = False
-        # self.required_derivatives = []
-        # self.max_diff_order = None
-        # diff_orders = []
-        #
-        # for name in self.sym_names:
-        #     # Matches dy1dx1 (first-order)
-        #     if re.fullmatch(r"dy\d+dx\d+", name):
-        #         self.has_differential_terms = True
-        #         diff_orders.append(1)
-        #         y_idx, x_idx = re.findall(r"\d+", name)
-        #         self.required_derivatives.append({
-        #             'target': f'y{y_idx}',
-        #             'order': 1,
-        #             'wrt': [f'x{x_idx}'],
-        #             'symbol': name
-        #         })
-        #
-        #     # Matches d2y1dx1dx2, d3y2dx3dx1dx1, etc.
-        #     elif match := re.fullmatch(r"d(\d+)y(\d+)dx(\d+)(dx\d+)*", name):
-        #         self.has_differential_terms = True
-        #         order = int(match.group(1))
-        #         y_idx = int(match.group(2))
-        #         dx_terms = re.findall(r"dx(\d+)", name)
-        #         self.required_derivatives.append({
-        #             'target': f'y{y_idx}',
-        #             'order': order,
-        #             'wrt': [f'x{i}' for i in dx_terms],
-        #             'symbol': name
-        #         })
-        #         diff_orders.append(order)
-        #
-        # self.num_gradient_terms = len(self.required_derivatives)
-        # if self.has_differential_terms:
-        #     self.max_diff_order = max(diff_orders)
-
         # ===============================
         # Input/Output Variable Detection
         # ===============================
@@ -162,109 +123,7 @@ class KKT_HardNet_Trainer:
             self.optimizer.zero_grad()
 
             # Step 1: Predict base NN outputs (y1, y2, ...)
-            y_hat_base = self.model.nn(x_batch)  # shape: (B, num_outputs)
-
-            # print("Shape of Predicted Y: ", y_hat_base.shape)
-
-            # Step 2: Compute required derivatives
-            # grad_outputs = []
-            # if self.required_derivatives:
-            #     output_map = {f'y{i + 1}': y_hat_base[:, i] for i in range(y_hat_base.shape[1])}
-
-            #     for item in self.required_derivatives:
-            #         y_target = output_map[item['target']]  # e.g., y1
-            #         wrt_vars = item['wrt']  # e.g., ['x1', 'x2']
-            #         order = item['order']
-
-            #         # Get indices of x variables
-            #         x_indices = [int(var[1:]) - 1 for var in wrt_vars]  # x1 → 0, x2 → 1, ...
-
-            #         grad = y_target
-            #         for i in range(order):
-            #             grads = torch.autograd.grad(
-            #                 grad,
-            #                 x_test_batch,
-            #                 grad_outputs=torch.ones_like(grad),
-            #                 create_graph=True,
-            #                 retain_graph=True,
-            #                 only_inputs=True,
-            #                 allow_unused=True
-            #             )[0]
-
-            #             if grads is None:
-            #                 grads = torch.zeros_like(x_test_batch)
-
-            #             grad = grads[:, x_indices[i]]
-
-            #         grad_outputs.append(grad.unsqueeze(1))  # shape: (B, 1)
-
-            # grad_outputs = []
-            # if self.required_derivatives:
-            #     # map output names to columns
-            #     output_map = {f'y{i + 1}': y_hat_base[:, i] for i in range(y_hat_base.shape[1])}
-            #
-            #     for item in self.required_derivatives:
-            #         target_name = item['target']  # e.g., 'y1'
-            #         order = int(item['order'])  # integer order
-            #         wrt_list = item.get('wrt', [])  # e.g., ['x1'] or ['x1','x2']
-            #         y_target = output_map[target_name]  # shape [B]
-            #
-            #         # convert wrt variable names to indices: 'x1' -> 0, 'x2' -> 1, ...
-            #         wrt_indices = [int(v[1:]) - 1 for v in wrt_list]
-            #
-            #         # build differentiation sequence (length == order)
-            #         # - if user provided exactly 'order' vars, use them
-            #         # - if single entry provided, repeat it 'order' times
-            #         # - if fewer than order provided, repeat the last one to fill
-            #         if len(wrt_indices) == order:
-            #             seq = wrt_indices
-            #         elif len(wrt_indices) == 1:
-            #             seq = [wrt_indices[0]] * order
-            #         elif 1 < len(wrt_indices) < order:
-            #             seq = wrt_indices + [wrt_indices[-1]] * (order - len(wrt_indices))
-            #         else:  # if none provided, default to differentiate w.r.t. x1 repeatedly
-            #             seq = [0] * order
-            #
-            #         # iterative differentiation following the sequence
-            #         grad = y_target  # shape [B]
-            #         # we need a scalar-valued grad_outputs of same shape for autograd.grad
-            #         for j, var_idx in enumerate(seq):
-            #             # compute gradients of 'grad' w.r.t. x_batch (returns [B, input_dim])
-            #             grads_wrt_x = torch.autograd.grad(
-            #                 grad,
-            #                 x_batch,
-            #                 grad_outputs=torch.ones_like(grad),
-            #                 create_graph=True,
-            #                 retain_graph=True,
-            #                 only_inputs=True
-            #             )[0]  # shape [B, input_dim]
-            #
-            #             # select the column corresponding to var_idx
-            #             grad = grads_wrt_x[:, var_idx]  # shape [B]
-            #
-            #         # now 'grad' is the desired derivative array shape [B]
-            #         grad_outputs.append(grad)  # collect for later concatenation/use
-            #
-            # # # Step 3: Concatenate outputs according to sym_names
-            # # y_head = y_hat_base[:, :y_test_batch.shape[-1]]  # original y vars
-            # # y_tail = y_hat_base[:, y_test_batch.shape[-1]:]  # remaining vars after y
-            #
-            # # if grad_outputs:
-            # #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
-            # # else:
-            # #     y_hat = y_hat_base
-            #
-            # # Ensure all grad_outputs are 2D column tensors [B, 1]
-            # grad_outputs = [g.unsqueeze(1) if g.ndim == 1 else g for g in grad_outputs]
-            #
-            # # Step 3: Concatenate all outputs in the order of sym_names
-            # y_head = y_hat_base[:, :y_batch.shape[-1]]  # original y vars
-            # y_tail = y_hat_base[:, y_batch.shape[-1]:]  # remaining vars after y
-            #
-            # if grad_outputs:
-            #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
-            # else:
-            y_hat = y_hat_base
+            y_hat = self.model.nn(x_batch)  # shape: (B, num_outputs)
 
             # Step 4: Build input for res_fn (x + original NN outputs)
             x_input = torch.cat([x_batch, y_hat[:, :y_batch.shape[-1]]], dim=1)
@@ -273,16 +132,10 @@ class KKT_HardNet_Trainer:
                 data_loss = self.criterion(y_hat[:, :y_batch.shape[-1]], y_batch)
                 consistency_loss = torch.tensor(0.0, device=self.device)
                 loss = data_loss
-                # r = self.res_fn(y_hat, x_input)
-                # norm = torch.linalg.norm(r, dim=1)
-                # pinn_loss = torch.mean(norm)
 
                 eq_res = self.eq_viol_fn(y_hat, x_input)
                 ineq_res = self.ineq_viol_fn(y_hat, x_input)
-                # eq = eq_res if eq_res.dim() == 2 else eq_res.squeeze(-1)
-                # iq = ineq_res if ineq_res.dim() == 2 else ineq_res.squeeze(-1)
-                # iq_viol = torch.clamp_min(iq, 0.0)
-                # combined = torch.cat([eq, iq_viol], dim=1)
+
                 ineq_res = torch.clamp_min(ineq_res, 0)
                 combined = torch.cat([eq_res, ineq_res], dim=1)
                 abs_pinn_loss = torch.mean(combined.abs().sum(dim=1))
@@ -344,107 +197,7 @@ class KKT_HardNet_Trainer:
             y_data_test_batch = y_data_test_batch.to(self.device)
 
             # Step 1: Base NN predictions
-            y_hat_base = self.model.nn(x_test_batch)  # shape: (B, num_outputs)
-
-            # Step 2: Compute required derivatives
-            # grad_outputs = []
-            # if self.required_derivatives:
-            #     output_map = {f'y{i + 1}': y_hat_base[:, i] for i in range(y_hat_base.shape[1])}
-
-            #     for item in self.required_derivatives:
-            #         y_target = output_map[item['target']]  # e.g., y1
-            #         wrt_vars = item['wrt']  # e.g., ['x1', 'x2']
-            #         order = item['order']
-
-            #         # Get indices of x variables
-            #         x_indices = [int(var[1:]) - 1 for var in wrt_vars]  # x1 → 0, x2 → 1, ...
-
-            #         grad = y_target
-            #         for i in range(order):
-            #             grads = torch.autograd.grad(
-            #                 grad,
-            #                 x_test_batch,
-            #                 grad_outputs=torch.ones_like(grad),
-            #                 create_graph=True,
-            #                 retain_graph=True,
-            #                 only_inputs=True,
-            #                 allow_unused=True
-            #             )[0]
-
-            #             if grads is None:
-            #                 grads = torch.zeros_like(x_test_batch)
-
-            #             grad = grads[:, x_indices[i]]
-
-            #         grad_outputs.append(grad.unsqueeze(1))  # shape: (B, 1)
-
-            # grad_outputs = []
-            # if self.required_derivatives:
-            #     # map output names to columns
-            #     output_map = {f'y{i + 1}': y_hat_base[:, i] for i in range(y_hat_base.shape[1])}
-            #
-            #     for item in self.required_derivatives:
-            #         target_name = item['target']  # e.g., 'y1'
-            #         order = int(item['order'])  # integer order
-            #         wrt_list = item.get('wrt', [])  # e.g., ['x1'] or ['x1','x2']
-            #         y_target = output_map[target_name]  # shape [B]
-            #
-            #         # convert wrt variable names to indices: 'x1' -> 0, 'x2' -> 1, ...
-            #         wrt_indices = [int(v[1:]) - 1 for v in wrt_list]
-            #
-            #         # build differentiation sequence (length == order)
-            #         # - if user provided exactly 'order' vars, use them
-            #         # - if single entry provided, repeat it 'order' times
-            #         # - if fewer than order provided, repeat the last one to fill
-            #         if len(wrt_indices) == order:
-            #             seq = wrt_indices
-            #         elif len(wrt_indices) == 1:
-            #             seq = [wrt_indices[0]] * order
-            #         elif 1 < len(wrt_indices) < order:
-            #             seq = wrt_indices + [wrt_indices[-1]] * (order - len(wrt_indices))
-            #         else:  # if none provided, default to differentiate w.r.t. x1 repeatedly
-            #             seq = [0] * order
-            #
-            #         # iterative differentiation following the sequence
-            #         grad = y_target  # shape [B]
-            #         # we need a scalar-valued grad_outputs of same shape for autograd.grad
-            #         for j, var_idx in enumerate(seq):
-            #             # compute gradients of 'grad' w.r.t. x_batch (returns [B, input_dim])
-            #             grads_wrt_x = torch.autograd.grad(
-            #                 grad,
-            #                 x_test_batch,
-            #                 grad_outputs=torch.ones_like(grad),
-            #                 create_graph=True,
-            #                 retain_graph=True,
-            #                 only_inputs=True
-            #             )[0]  # shape [B, input_dim]
-            #
-            #             # select the column corresponding to var_idx
-            #             grad = grads_wrt_x[:, var_idx]  # shape [B]
-            #
-            #         # now 'grad' is the desired derivative array shape [B]
-            #         grad_outputs.append(grad)  # collect for later concatenation/use
-            #
-            # # # Step 3: Concatenate outputs according to sym_names
-            # # y_head = y_hat_base[:, :y_test_batch.shape[-1]]  # original y vars
-            # # y_tail = y_hat_base[:, y_test_batch.shape[-1]:]  # remaining vars after y
-            #
-            # # if grad_outputs:
-            # #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
-            # # else:
-            # #     y_hat = y_hat_base
-            #
-            # # Ensure all grad_outputs are 2D column tensors [B, 1]
-            # grad_outputs = [g.unsqueeze(1) if g.ndim == 1 else g for g in grad_outputs]
-            #
-            # # Step 3: Concatenate all outputs in the order of sym_names
-            # y_head = y_hat_base[:, :y_test_batch.shape[-1]]  # original y vars
-            # y_tail = y_hat_base[:, y_test_batch.shape[-1]:]  # remaining vars after y
-            #
-            # if grad_outputs:
-            #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
-            # else:
-            y_hat = y_hat_base
+            y_hat = self.model.nn(x_test_batch)  # shape: (B, num_outputs)
 
             # Step 4: Prepare residual input
             x_input = torch.cat([x_test_batch, y_hat[:, :y_test_batch.shape[-1]]], dim=1)
@@ -550,55 +303,7 @@ class KKT_HardNet_Trainer:
 
                 # Step 1: Base NN predictions
                 y_hat = self.model.nn(x_batch)
-
-                # Step 2: Compute required derivatives
-                # grad_outputs = []
-                # if self.required_derivatives:
-                #     output_map = {f'y{i + 1}': y_hat[:, i] for i in range(y_hat.shape[1])}
-                #
-                #     for item in self.required_derivatives:
-                #         target_name = item['target']
-                #         order = int(item['order'])
-                #         wrt_list = item.get('wrt', [])
-                #         y_target = output_map[target_name]
-                #
-                #         # convert wrt variable names to indices
-                #         wrt_indices = [int(v[1:]) - 1 for v in wrt_list]
-                #
-                #         # build differentiation sequence
-                #         if len(wrt_indices) == order:
-                #             seq = wrt_indices
-                #         elif len(wrt_indices) == 1:
-                #             seq = [wrt_indices[0]] * order
-                #         elif 1 < len(wrt_indices) < order:
-                #             seq = wrt_indices + [wrt_indices[-1]] * (order - len(wrt_indices))
-                #         else:
-                #             seq = [0] * order
-                #
-                #         grad = y_target
-                #         for var_idx in seq:
-                #             grads_wrt_x = torch.autograd.grad(
-                #                 grad,
-                #                 x_batch,
-                #                 grad_outputs=torch.ones_like(grad),
-                #                 create_graph=True,
-                #                 retain_graph=True,
-                #                 only_inputs=True
-                #             )[0]
-                #             grad = grads_wrt_x[:, var_idx]
-                #
-                #         grad_outputs.append(grad)
-                #
-                # # Ensure all grad_outputs are 2D column tensors [B, 1]
-                # grad_outputs = [g.unsqueeze(1) if g.ndim == 1 else g for g in grad_outputs]
-                #
-                # # Step 3: Concatenate outputs in the order of sym_names
-                # y_head = y_hat[:, :y_batch.shape[-1]]
-                # y_tail = y_hat[:, y_batch.shape[-1]:]
-                #
-                # if grad_outputs:
-                #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
-
+                
                 # Step 4: Prepare input for Newton
                 x_input = torch.cat([x_batch, y_hat[:, :y_batch.shape[-1]]], dim=1)
                 y_tilde = self.model.newton(y_hat, x_input)
@@ -615,7 +320,6 @@ class KKT_HardNet_Trainer:
         y_all = np.vstack(y_all)
 
         # Create DataFrame and save
-        import pandas as pd
         df = pd.DataFrame(
             np.hstack([x_all, y_all]),
             columns=[f"x{i + 1}" for i in range(x_all.shape[1])] +
@@ -638,54 +342,6 @@ class KKT_HardNet_Trainer:
 
             # Step 1: Base NN predictions
             y_hat = self.model.nn(x_batch)
-
-            # # Step 2: Compute required derivatives
-            # grad_outputs = []
-            # if self.required_derivatives:
-            #     output_map = {f'y{i + 1}': y_hat[:, i] for i in range(y_hat.shape[1])}
-            #
-            #     for item in self.required_derivatives:
-            #         target_name = item['target']
-            #         order = int(item['order'])
-            #         wrt_list = item.get('wrt', [])
-            #         y_target = output_map[target_name]
-            #
-            #         # convert wrt variable names to indices
-            #         wrt_indices = [int(v[1:]) - 1 for v in wrt_list]
-            #
-            #         # build differentiation sequence
-            #         if len(wrt_indices) == order:
-            #             seq = wrt_indices
-            #         elif len(wrt_indices) == 1:
-            #             seq = [wrt_indices[0]] * order
-            #         elif 1 < len(wrt_indices) < order:
-            #             seq = wrt_indices + [wrt_indices[-1]] * (order - len(wrt_indices))
-            #         else:
-            #             seq = [0] * order
-            #
-            #         grad = y_target
-            #         for var_idx in seq:
-            #             grads_wrt_x = torch.autograd.grad(
-            #                 grad,
-            #                 x_batch,
-            #                 grad_outputs=torch.ones_like(grad),
-            #                 create_graph=True,
-            #                 retain_graph=True,
-            #                 only_inputs=True
-            #             )[0]
-            #             grad = grads_wrt_x[:, var_idx]
-            #
-            #         grad_outputs.append(grad)
-            #
-            # # Ensure all grad_outputs are 2D column tensors [B, 1]
-            # grad_outputs = [g.unsqueeze(1) if g.ndim == 1 else g for g in grad_outputs]
-            #
-            # # Step 3: Concatenate outputs in the order of sym_names
-            # y_head = y_hat[:, :y_batch.shape[-1]]
-            # y_tail = y_hat[:, y_batch.shape[-1]:]
-            #
-            # if grad_outputs:
-            #     y_hat = torch.cat([y_head] + grad_outputs + [y_tail], dim=1)
 
             # Step 4: Prepare input for Newton
             x_input = torch.cat([x_batch, y_hat[:, :y_batch.shape[-1]]], dim=1)
@@ -785,4 +441,3 @@ class KKT_HardNet_Trainer:
         self._save_model()
         self._save_losses()
         self.export_predictions()
-        # self._save_mse_mape()

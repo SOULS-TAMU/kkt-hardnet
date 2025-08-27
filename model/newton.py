@@ -26,30 +26,26 @@ class NewtonLayer(nn.Module):
             if re.fullmatch(r"y\d+", name):
                 return (0, name)
 
-            # Derivative variables: dy1dx1 or d1y1dx1 or d2y3dx4
-            elif re.fullmatch(r"d\d*y\d+dx\d+", name) or re.fullmatch(r"dy\d+dx\d+", name):
-                return (1, name)
-
             # Other y-prefixed variables (e.g., y1x1d1)
             elif name.startswith("y") and not name.endswith("data"):
-                return (2, name)
+                return (1, name)
 
             elif name.startswith("lambda"):
-                return (3, name)
+                return (2, name)
             elif name.startswith("mu"):
-                return (4, name)
+                return (3, name)
             elif name.startswith("s"):
-                return (5, name)
+                return (4, name)
             elif name.startswith("delta"):
-                return (6, name)
+                return (5, name)
             elif name.startswith("sigma"):
-                return (7, name)
+                return (6, name)
             elif name.startswith("x"):
-                return (8, name)
+                return (7, name)
             elif name.endswith("data"):
-                return (9, name)
+                return (8, name)
             else:
-                return (10, name)  # fallback
+                return (9, name)  # fallback
 
         # Combine all symbols and sort them
         self.all_syms = sorted(variables + parameters, key=categorize)

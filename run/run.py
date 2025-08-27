@@ -95,7 +95,8 @@ class Runner:
 
     def _define_model(self):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f"Cuda Availability: {torch.cuda.is_available()}: Using {torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"}")
+        print(f"Cuda Availability: {torch.cuda.is_available()}: Using {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
+
         self.model = NewtonModel(
             residuals=self.system, 
             eq_violation=self.eq_viol, 
@@ -131,13 +132,6 @@ class Runner:
 
             data = np.load(file)
             min_val = 1e-12
-
-            # train_data = np.log10(np.clip(data['train_data_loss'], min_val, None))
-            # test_data = np.log10(np.clip(data['test_data_loss'], min_val, None))
-            # train_pinn = np.log10(np.clip(data['train_pinn_loss'], min_val, None))
-            # test_pinn = np.log10(np.clip(data['test_pinn_loss'], min_val, None))
-            # train_abs_violation = np.log10(np.clip(data['train_abs_violation'], min_val, None))
-            # test_abs_violation = np.log10(np.clip(data['test_abs_violation'], min_val, None))
 
             train_data = np.clip(data['train_data_loss'], min_val, None)
             test_data = np.clip(data['test_data_loss'], min_val, None)
@@ -227,13 +221,10 @@ class Runner:
                     color = 'o'
                 ax1.plot(epochs, train_rmse, label=f'{label} train', linewidth=2, color=color)
                 ax1.plot(epochs, test_rmse, label=f'{label} val', linestyle='--', linewidth=2, color=color)
-        # max_epoch = epochs[-1]   # last epoch index
-        # ax1.set_xticks(np.arange(0, max_epoch+2, 200))
+
         ax1.set(xlabel="Epoch", ylabel="RMSE")
-        # ax1.set_yticks([0, 20, 40, 60])             # positions
-        # ax1.set_yticklabels([r"$0$", r"$20$", r"$40$", r"$60$"])  # labels
-        # ax1.grid("--", alpha=0.4)
         ax1.legend(fontsize=12)
+
         # Violation
         for label, (train_violation, test_violation) in abs_violation.items():
                 epochs = np.arange(len(train_violation))
@@ -248,14 +239,10 @@ class Runner:
                 ax2.plot(epochs, train_violation, label=f'{label} train', linewidth=2, color=color)
                 ax2.plot(epochs, test_violation, label=f'{label} val', linestyle='--', linewidth=2, color=color)
         max_epoch = epochs[-1]   # last epoch index
-        # ax2.set_xticks(np.arange(0, max_epoch+2, 200))
+
         ax2.set(xlabel="Epoch", ylabel="Absolute Violation")
         ax2.set_yscale("log")
-        # ax2.set_yticks([1e-5, 1e-3, 1e-1, 1e1, 1e3])             # positions
-        # ax2.set_yticklabels([r"$10^{-5}$", r"$10^{-3}$", r"$10^{-1}$", r"$10^{1}$", r"$10^{3}$"])  # labels
         ax2.grid("--", alpha=0.4)
-        # ax2.legend(fontsize=12,loc='lower right')
-        # ax2.legend(fontsize=12)
         plt.tight_layout()
         save_path_rmse_violation = os.path.join(self.config_dir, "all_models_rmse_and_violation.png")
         plt.savefig(save_path_rmse_violation, dpi=600)
