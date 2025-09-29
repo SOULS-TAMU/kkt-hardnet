@@ -117,7 +117,7 @@ cd kkt-hardnet
 # 3. Create and activate a virtual environment (default: "venv")
 bash create_env.sh --name "<environment_name>"
 
-# 4. Activate virtual environment (change "venv" to virtual environment name)
+# 4. Activate the virtual environment (change "venv" to virtual environment name | default: "venv")
 source ./venv/bin/activate
 
 # 5. Install all dependencies (default: requirements.txt)
@@ -146,17 +146,20 @@ cd kkt-hardnet
 # 3. Create and activate a virtual environment (default: "venv")
 create_env.bat --name "<environment_name>"
 
-# 4. Install all dependencies (default: requirements.txt)
+# 4. Activate the virtual environment (change "venv" to virtual environment name | default: "venv")
+call venv/Scripts/activate
+
+# 5. Install all dependencies (default: requirements.txt)
 installer.bat --filename "<requirements_file>"
 
-# 5. Create a new problem directory
+# 6. Create a new problem directory
 mkdir .\Op_problems\<your-problem>
 
-# 6. Add 'problem.json' and 'model_config.json' into the new directory
-# 7. Add your dataset file (CSV) and reference it in 'problem.json'
-# 8. Update 'runner.bat' to include your problem directory
+# 7. Add 'problem.json' and 'model_config.json' into the new directory
+# 8. Add your dataset file (CSV) and reference it in 'problem.json'
+# 9. Update 'runner.bat' to include your problem directory
 
-# 9. Run the model
+# 10. Run the model
 runner.bat
 ```
 
