@@ -147,7 +147,7 @@ cd kkt-hardnet
 create_env.bat --name "<environment_name>"
 
 # 4. Activate the virtual environment (change "venv" to virtual environment name | default: "venv")
-call venv/Scripts/activate
+call venv\Scripts\activate
 
 # 5. Install all dependencies (default: requirements.txt)
 installer.bat --filename "<requirements_file>"
