@@ -1,4 +1,5 @@
 from sympy import Symbol
+import re
 from KKT.creator import KKTSystemCreator
 
 
