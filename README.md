@@ -193,6 +193,7 @@ After a successful run, the following files are saved in `./Op_problems/<your-pr
 Citation formats are provided below.
 
 arXiv Preprint: https://arxiv.org/pdf/2507.08124
+Journal: https://doi.org/10.1016/j.compchemeng.2025.109418
 
 ```bibtex
 @article{iftakher2025physics,
