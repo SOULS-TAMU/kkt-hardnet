@@ -3,7 +3,7 @@
 **Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints**
 
 This repository contains the official implementation of KKT-Hardnet.  
-📄 **Paper:** [Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints](https://arxiv.org/abs/2507.08124)
+📄 **Paper:** [Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints](https://doi.org/10.1016/j.compchemeng.2025.109418)
 
 
 ---
