@@ -1,0 +1,15 @@
+{
+  "type": "qcqp",
+  "p": 2,
+  "n": 4,
+  "me": 1,
+  "mi": 1,
+  "num_samples": 12,
+  "seed": 42,
+  "solver": "SCS",
+  "is_diag_Q": false,
+  "bound_radius": 2.0,
+  "force_regenerate": false,
+  "x_L": [-1.0],
+  "x_U": [1.0]
+}

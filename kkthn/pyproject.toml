@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kkthn"
+version = "0.1.0"
+description = "KKT-HardNet: JAX surrogate regression with a hard KKT projection layer"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Bimol Nath Roy", email = "bimolnathroy@tamu.edu"}
+]
+dependencies = [
+    "jax>=0.4.28",
+    "jaxlib>=0.4.28",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "cvxpy>=1.4",
+    "optax>=0.2",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

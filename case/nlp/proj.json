@@ -1,0 +1,5 @@
+{
+  "fb_eps": 1e-8,
+  "gn_max_iters": 25,
+  "gn_tol": 1e-8
+}

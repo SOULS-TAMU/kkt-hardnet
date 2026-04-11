@@ -1,0 +1,20 @@
+{
+  "type": "nlp",
+  "n_x": 2,
+  "n_y": 4,
+  "n_eq": 1,
+  "n_ineq": 1,
+  "N_samples": 16,
+  "N_points": 12,
+  "seed": 42,
+  "solver": "SCS",
+  "is_diag_Q": false,
+  "q_diag_shift": 0.5,
+  "nl_margin": 1.0,
+  "bound_margin": 1.0,
+  "bound_scale": 0.2,
+  "param_scale": 0.4,
+  "force_regenerate": false,
+  "x_L": [-1.0],
+  "x_U": [1.0]
+}
