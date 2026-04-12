@@ -1,5 +1,13 @@
 # KKTHardNet Version Tracker
 
+## 0.1.3 - 2026-04-12
+
+Sibling relocation support.
+
+- Added NLPOptNet discovery for sibling layouts such as `D:/Projects/KKTHardNet` next to `D:/Projects/NLPOptNet`.
+- Added `NLP_OPT_NET_ROOT` / `NLPOPTNET_ROOT` environment-variable override for dependency discovery.
+- Updated runner scripts, package helpers, and the general case model definition to use the same discovery behavior.
+
 ## 0.1.2 - 2026-04-12
 
 Native Windows install fallback.

@@ -17,9 +17,16 @@ from scipy.optimize import Bounds, NonlinearConstraint, minimize
 jax.config.update("jax_enable_x64", True)
 
 def _discover_nlpopt_root() -> Path | None:
+    for env_name in ("NLP_OPT_NET_ROOT", "NLPOPTNET_ROOT"):
+        raw = __import__("os").environ.get(env_name)
+        if raw:
+            candidate = Path(raw).expanduser().resolve()
+            if (candidate / "nlpopt" / "src").exists():
+                return candidate
     for parent in Path(__file__).resolve().parents:
-        if (parent / "nlpopt" / "src").exists():
-            return parent
+        for candidate in (parent, parent / "NLPOptNet"):
+            if (candidate / "nlpopt" / "src").exists():
+                return candidate
     return None
 
 

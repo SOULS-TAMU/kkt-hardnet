@@ -7,10 +7,28 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PARENT = ROOT.parent
-NLP_SRC = PARENT / "nlpopt" / "src"
 KKTHN_SRC = ROOT / "kkthn" / "src"
-for candidate in (KKTHN_SRC, ROOT, PARENT, NLP_SRC):
+
+
+def _discover_nlpopt_root(start: Path) -> Path | None:
+    for env_name in ("NLP_OPT_NET_ROOT", "NLPOPTNET_ROOT"):
+        raw = __import__("os").environ.get(env_name)
+        if raw:
+            candidate = Path(raw).expanduser().resolve()
+            if (candidate / "nlpopt" / "src").exists():
+                return candidate
+    for parent in (start, *start.parents):
+        for candidate in (parent, parent / "NLPOptNet"):
+            if (candidate / "nlpopt" / "src").exists():
+                return candidate
+    return None
+
+
+NLP_ROOT = _discover_nlpopt_root(ROOT)
+NLP_SRC = NLP_ROOT / "nlpopt" / "src" if NLP_ROOT is not None else None
+for candidate in (KKTHN_SRC, ROOT, NLP_ROOT, NLP_SRC):
+    if candidate is None:
+        continue
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
