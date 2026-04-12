@@ -26,11 +26,19 @@ pip install -e kkthn
 
 - CUDA detected: uses `kkthn/requirements.gpu.txt`
 - CUDA not detected: uses `kkthn/requirements.txt`
+- Native Windows: uses CPU dependencies by default because JAX CUDA plugin wheels are not available there.
 
 To force one:
 
 ```powershell
 $env:KKTHN_REQUIREMENTS = "gpu"  # or "cpu"
+pip install -e kkthn
+```
+
+To print the selected dependency mode before installing:
+
+```powershell
+python kkthn\install_info.py
 pip install -e kkthn
 ```
 

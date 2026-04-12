@@ -1,5 +1,15 @@
 # KKTHardNet Version Tracker
 
+## 0.1.2 - 2026-04-12
+
+Native Windows install fallback.
+
+- Changed default dependency detection to use CPU requirements on native Windows.
+- Avoids `jax[cuda12]` install failures from unavailable `jax-cuda12-plugin` Windows wheels.
+- Added install-time message with selected CPU/GPU dependency mode and reason.
+- Added `install_info.py` for explicitly printing the selected dependency mode before running pip.
+- Preserved `KKTHN_REQUIREMENTS=gpu` override for explicit advanced use.
+
 ## 0.1.1 - 2026-04-12
 
 Packaging install dependency selection.

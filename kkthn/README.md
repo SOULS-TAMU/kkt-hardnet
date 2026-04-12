@@ -25,6 +25,7 @@ By default, editable installation checks for CUDA using `CUDA_HOME`, `CUDA_PATH`
 
 - CUDA detected: dependencies are read from `requirements.gpu.txt`.
 - CUDA not detected: dependencies are read from `requirements.txt`.
+- Native Windows: CPU dependencies are used by default because JAX CUDA plugin wheels are not available there.
 
 You can force either path:
 
@@ -36,6 +37,13 @@ pip install -e kkthn
 ```powershell
 $env:KKTHN_REQUIREMENTS = "cpu"
 pip install -e kkthn
+```
+
+To print the selected dependency mode before installing:
+
+```powershell
+python install_info.py
+pip install -e .
 ```
 
 ## Import
