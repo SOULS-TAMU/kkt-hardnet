@@ -104,6 +104,9 @@ def train_kkt_hardnet(
     param_name: str = "x",
     output_dir: Path | None = None,
     metadata: dict[str, Any] | None = None,
+    inverse_param_init: np.ndarray | None = None,
+    inverse_param_labels: np.ndarray | None = None,
+    inverse_param_names: list[str] | None = None,
 ) -> dict[str, Any]:
     train_dtype = _dtype(cfg.dtype)
     X_np = np.asarray(X, dtype=np.float64)
@@ -113,10 +116,35 @@ def train_kkt_hardnet(
     if X_np.shape[0] != Y_np.shape[0]:
         raise ValueError("X and Y must have the same number of rows.")
 
+    inverse_mode = inverse_param_init is not None
+    inverse_init_np = (
+        np.asarray(inverse_param_init, dtype=np.float64).reshape(-1)
+        if inverse_mode
+        else np.zeros((0,), dtype=np.float64)
+    )
+    inverse_labels_np = (
+        None
+        if inverse_param_labels is None
+        else np.asarray(inverse_param_labels, dtype=np.float64).reshape(-1)
+    )
+    inverse_names = list(inverse_param_names or [f"theta_{idx}" for idx in range(inverse_init_np.size)])
+    if inverse_mode and len(inverse_names) != inverse_init_np.size:
+        raise ValueError("inverse_param_names must have the same length as inverse_param_init.")
+    if inverse_labels_np is not None and inverse_labels_np.size != inverse_init_np.size:
+        raise ValueError("inverse_param_labels must have the same length as inverse_param_init.")
+
     projection = make_projection_layer(model, param_name=param_name, settings=cfg.projection)
     dims = projection.dims
-    if X_np.shape[1] != dims["n_x"]:
-        raise ValueError(f"X has {X_np.shape[1]} columns, expected {dims['n_x']}.")
+    data_n_x = int(X_np.shape[1])
+    if inverse_mode:
+        expected_total = data_n_x + int(inverse_init_np.size)
+        if expected_total != dims["n_x"]:
+            raise ValueError(
+                f"X columns plus inverse parameters equal {expected_total}, "
+                f"but the string model expects {dims['n_x']} parameters."
+            )
+    elif data_n_x != dims["n_x"]:
+        raise ValueError(f"X has {data_n_x} columns, expected {dims['n_x']}.")
     if Y_np.shape[1] != dims["n_y"]:
         raise ValueError(f"Y has {Y_np.shape[1]} columns, expected {dims['n_y']}.")
 
@@ -126,23 +154,41 @@ def train_kkt_hardnet(
     Xva_j = jnp.asarray(Xva, dtype=train_dtype)
     Yva_j = jnp.asarray(Yva, dtype=train_dtype)
 
-    layer_sizes = [dims["n_x"]] + [int(cfg.hidden_size)] * int(cfg.hidden_layers) + [dims["n_y"]]
+    layer_sizes = [data_n_x] + [int(cfg.hidden_size)] * int(cfg.hidden_layers) + [dims["n_y"]]
     key = jax.random.PRNGKey(int(cfg.seed))
-    params = init_mlp_params(key, layer_sizes, dtype=train_dtype)
+    network_params = init_mlp_params(key, layer_sizes, dtype=train_dtype)
+    if inverse_mode:
+        params = {
+            "network": network_params,
+            "inverse": jnp.asarray(inverse_init_np, dtype=train_dtype),
+        }
+    else:
+        params = network_params
     batched_mlp_apply = make_batched_mlp_apply()
     optimizer = optax.adam(float(cfg.learning_rate))
     opt_state = optimizer.init(params)
 
+    def network_tree(params_in):
+        return params_in["network"] if inverse_mode else params_in
+
+    def augmented_x(params_in, x_batch):
+        if not inverse_mode:
+            return x_batch
+        theta = params_in["inverse"]
+        theta_batch = jnp.broadcast_to(theta, (x_batch.shape[0], theta.shape[0]))
+        return jnp.concatenate([x_batch, theta_batch], axis=1)
+
     @jax.jit
     def model_forward(params_in, x_batch):
-        y_hat = batched_mlp_apply(params_in, x_batch)
-        y_proj = projection.project(x_batch, y_hat)
+        y_hat = batched_mlp_apply(network_tree(params_in), x_batch)
+        y_proj = projection.project(augmented_x(params_in, x_batch), y_hat)
         return y_hat, y_proj
 
     @jax.jit
-    def constraint_violation_batch(x_batch, y_batch):
-        ce = jax.vmap(projection.eq_constraints, in_axes=(0, 0))(y_batch, x_batch)
-        gi = jax.vmap(projection.ineq_constraints, in_axes=(0, 0))(y_batch, x_batch)
+    def constraint_violation_batch(params_in, x_batch, y_batch):
+        x_aug = augmented_x(params_in, x_batch)
+        ce = jax.vmap(projection.eq_constraints, in_axes=(0, 0))(y_batch, x_aug)
+        gi = jax.vmap(projection.ineq_constraints, in_axes=(0, 0))(y_batch, x_aug)
         eq_l2 = jnp.mean(jnp.linalg.norm(ce, axis=1)) if dims["n_eq"] > 0 else jnp.asarray(0.0, dtype=train_dtype)
         ineq_l2 = jnp.mean(jnp.linalg.norm(jnp.maximum(gi, 0.0), axis=1)) if dims["n_ineq"] > 0 else jnp.asarray(0.0, dtype=train_dtype)
         return eq_l2, ineq_l2
@@ -164,21 +210,21 @@ def train_kkt_hardnet(
         y_hat, y_proj = model_forward(params_in, x_batch)
         loss = jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
         raw_mse = jnp.mean(jnp.sum((y_hat - y_batch) ** 2, axis=1))
-        eq_l2, ineq_l2 = constraint_violation_batch(x_batch, y_proj)
+        eq_l2, ineq_l2 = constraint_violation_batch(params_in, x_batch, y_proj)
         return loss, raw_mse, eq_l2, ineq_l2, y_hat, y_proj
 
     @jax.jit
     def backbone_forward_fn(params_in, x_batch):
-        return batched_mlp_apply(params_in, x_batch)
+        return batched_mlp_apply(network_tree(params_in), x_batch)
 
     @jax.jit
-    def projection_only_fn(x_batch, y_hat):
-        return projection.project(x_batch, y_hat)
+    def projection_only_fn(params_in, x_batch, y_hat):
+        return projection.project(augmented_x(params_in, x_batch), y_hat)
 
     @jax.jit
     def forward_loss_fn(params_in, x_batch, y_batch):
         y_hat = backbone_forward_fn(params_in, x_batch)
-        y_proj = projection_only_fn(x_batch, y_hat)
+        y_proj = projection_only_fn(params_in, x_batch, y_hat)
         return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
 
     grad_only_fn = jax.jit(jax.grad(forward_loss_fn))
@@ -190,6 +236,11 @@ def train_kkt_hardnet(
 
     print("KKT-HardNet")
     print(f"  dims: n_x={dims['n_x']} n_y={dims['n_y']} n_eq={dims['n_eq']} n_ineq={dims['n_ineq']}")
+    if inverse_mode:
+        print(f"  mode: inverse data_n_x={data_n_x} inverse_n={inverse_init_np.size}")
+        print(f"  inverse init: {dict(zip(inverse_names, inverse_init_np.tolist()))}")
+    else:
+        print("  mode: forward")
     print(f"  samples: train={Xtr.shape[0]} val={Xva.shape[0]} batch_size={cfg.batch_size}")
     print(f"  network: {layer_sizes}")
 
@@ -202,7 +253,7 @@ def train_kkt_hardnet(
     warm_params, warm_opt_state, warm_loss = train_step(params, opt_state, warm_x, warm_y)
     warm_eval = eval_metrics(params, warm_vx, warm_vy)
     warm_hat = backbone_forward_fn(params, warm_x)
-    warm_proj = projection_only_fn(warm_x, warm_hat)
+    warm_proj = projection_only_fn(params, warm_x, warm_hat)
     warm_grads = grad_only_fn(params, warm_x, warm_y)
     warm_update = optimizer_update_fn(params, opt_state, warm_grads)
     _sync((warm_params, warm_opt_state, warm_loss, warm_eval, warm_hat, warm_proj, warm_grads, warm_update))
@@ -301,8 +352,8 @@ def train_kkt_hardnet(
 
     backbone_train_t = _measure_time(backbone_forward_fn, params, sample_train_x)
     backbone_val_t = _measure_time(backbone_forward_fn, params, sample_val_x)
-    projection_train_t = _measure_time(projection_only_fn, sample_train_x, sample_train_hat)
-    projection_val_t = _measure_time(projection_only_fn, sample_val_x, sample_val_hat)
+    projection_train_t = _measure_time(projection_only_fn, params, sample_train_x, sample_train_hat)
+    projection_val_t = _measure_time(projection_only_fn, params, sample_val_x, sample_val_hat)
     forward_total_t = _measure_time(forward_loss_fn, params, sample_train_x, sample_train_y)
     grad_total_t = _measure_time(grad_only_fn, params, sample_train_x, sample_train_y)
     optimizer_t = _measure_time(optimizer_update_fn, params, opt_state, sample_grads)
@@ -349,6 +400,31 @@ def train_kkt_hardnet(
         "component_time_percent": component_percent,
     }
 
+    inverse_summary = None
+    if inverse_mode:
+        estimated = np.asarray(jax.device_get(params["inverse"]), dtype=np.float64).reshape(-1)
+        actual = inverse_labels_np
+        rows = []
+        for idx, name in enumerate(inverse_names):
+            actual_value = None if actual is None else float(actual[idx])
+            estimated_value = float(estimated[idx])
+            rows.append(
+                {
+                    "name": str(name),
+                    "actual": actual_value,
+                    "estimated": estimated_value,
+                    "error": None if actual is None else float(estimated_value - actual_value),
+                    "abs_error": None if actual is None else float(abs(estimated_value - actual_value)),
+                }
+            )
+        inverse_summary = {
+            "names": inverse_names,
+            "initial": inverse_init_np,
+            "actual": actual,
+            "estimated": estimated,
+            "comparison": rows,
+        }
+
     final = history[-1]
     out = {
         "dims": dims,
@@ -358,6 +434,7 @@ def train_kkt_hardnet(
         "final": final,
         "training_wall_time_sec": train_time,
         "timing_profile": timing_profile,
+        "inverse_parameters": inverse_summary,
         "params": params,
         "val_predictions": {
             "X": np.asarray(Xva_j),
@@ -375,6 +452,9 @@ def train_kkt_hardnet(
         summary = {k: v for k, v in out.items() if k not in {"params", "val_predictions", "history"}}
         with open(output / "summary.json", "w", encoding="utf-8") as fh:
             json.dump(_json_safe(summary), fh, indent=2, sort_keys=True)
+        if inverse_summary is not None:
+            with open(output / "inverse_comparison.json", "w", encoding="utf-8") as fh:
+                json.dump(_json_safe(inverse_summary), fh, indent=2, sort_keys=True)
         np.savez(
             output / "predictions.npz",
             X=out["val_predictions"]["X"],
@@ -399,4 +479,10 @@ def train_kkt_hardnet(
     print(f"Projection       : {component_percent['projection']:6.2f}%")
     print(f"Backprop         : {component_percent['backprop']:6.2f}%")
     print(f"Optimizer update : {component_percent['optimizer']:6.2f}%")
+    if inverse_summary is not None:
+        print("=== Inverse parameter comparison ===")
+        for row in inverse_summary["comparison"]:
+            actual_txt = "n/a" if row["actual"] is None else f"{row['actual']:.8g}"
+            err_txt = "n/a" if row["error"] is None else f"{row['error']:+.3e}"
+            print(f"{row['name']}: actual={actual_txt} estimated={row['estimated']:.8g} error={err_txt}")
     return out

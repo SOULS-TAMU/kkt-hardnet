@@ -119,16 +119,30 @@ Generate labels only:
 python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2
 ```
 
+Generate noisy labels:
+
+```sh
+python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2 --noise_scale 0.1
+```
+
 Run a small training job:
 
 ```sh
 python main.py --type qp --action run --p 2 --n 4 --me 1 --mi 1 --samples 8 --epochs 1 --batch_size 2
 ```
 
-Run the string-defined general example:
+Run the builder-defined general example:
 
 ```sh
-python run_general.py --samples 8 --epochs 1 --batch_size 2
+python run_general.py --mode forward --samples 8 --epochs 1 --batch_size 2
+```
+
+For a builder-defined inverse problem, edit `build_problem()`,
+`DATA["inv_param"]`, `DATA["inv_param_label"]`, and optionally
+`DATA["inv_param_init"]` in `run_general.py`, then run:
+
+```sh
+python run_general.py --mode inverse
 ```
 
 ## Verify Package Location

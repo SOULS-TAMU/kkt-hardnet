@@ -6,6 +6,7 @@
   "mi": 1,
   "num_samples": 12,
   "seed": 42,
+  "noise_scale": 0.0,
   "is_diag_Q": false,
   "force_regenerate": false
 }

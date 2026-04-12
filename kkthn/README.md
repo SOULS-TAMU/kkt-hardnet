@@ -50,5 +50,5 @@ pip install -e .
 ## Import
 
 ```python
-from kkthn import KKTTrainConfig, train_kkt_hardnet
+from kkthn import KKTTrainConfig, ProblemBuilder, train_kkt_hardnet
 ```

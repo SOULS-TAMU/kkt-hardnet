@@ -6,6 +6,7 @@
   "mi": 5,
   "num_samples": 200,
   "seed": 42,
+  "noise_scale": 0.0,
   "solver": "OSQP",
   "is_diag_Q": false,
   "bound_radius": 2.0,

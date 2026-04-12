@@ -29,6 +29,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="KKT-HardNet runner.")
     parser.add_argument("--type", required=True, choices=("qp", "qcqp", "nlp", "nonconvex", "nonconvx", "general"))
     parser.add_argument("--action", default="run", choices=("run", "data"))
+    parser.add_argument("--mode", default="forward", choices=("forward", "inverse"), help="main.py supports forward mode only.")
     parser.add_argument("--p", type=int, default=None, help="Parameter dimension override.")
     parser.add_argument("--n", type=int, default=None, help="Decision dimension override.")
     parser.add_argument("--me", type=int, default=None, help="Equality count override.")
@@ -42,6 +43,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--hidden_size", type=int, default=None)
     parser.add_argument("--hidden_layers", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--noise_scale", type=float, default=None, help="Gaussian label-noise scale applied after clean labels are generated.")
     parser.add_argument("--output_dir", default=None)
     return parser.parse_args(argv)
 
@@ -77,6 +79,9 @@ def _train_cfg(cfg_dict: dict, proj_cfg: dict) -> KKTTrainConfig:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.mode != "forward":
+        print("main.py only supports --mode forward. Use run_general.py --mode inverse for builder-defined inverse problems.", file=sys.stderr)
+        return 2
     problem_type = normalize_problem_type(args.type)
     case_dir = ROOT / "case" / case_folder_name(problem_type)
     data_cfg = load_json(case_dir / "data.json")
@@ -98,10 +103,11 @@ def main(argv: list[str] | None = None) -> int:
         hidden_size=args.hidden_size,
         hidden_layers=args.hidden_layers,
         seed=args.seed,
+        noise_scale=args.noise_scale,
     )
 
     print("=" * 80)
-    print(f"KKT-HardNet runner | type={args.type} action={args.action}")
+    print(f"KKT-HardNet runner | type={args.type} action={args.action} mode={args.mode}")
     print(f"Case directory: {case_dir}")
     print(f"Data config: {data_cfg}")
     print(f"Train config: {cfg_dict}")

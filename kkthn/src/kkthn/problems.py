@@ -97,6 +97,7 @@ def apply_overrides(
     hidden_size: int | None = None,
     hidden_layers: int | None = None,
     seed: int | None = None,
+    noise_scale: float | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     data = copy.deepcopy(dict(data_cfg))
     cfg = copy.deepcopy(dict(cfg_dict))
@@ -134,6 +135,8 @@ def apply_overrides(
     if seed is not None:
         data["seed"] = int(seed)
         cfg["seed"] = int(seed)
+    if noise_scale is not None:
+        data["noise_scale"] = float(noise_scale)
 
     if epochs is not None:
         cfg["epochs"] = int(epochs)
@@ -163,6 +166,25 @@ def _sample_box(data_cfg: Mapping[str, Any], *, count: int, dim_key: str, seed_o
         raise ValueError(f"x_L/x_U must have shape ({n_x},).")
     rng = np.random.default_rng(int(data_cfg["seed"]) + int(seed_offset))
     return rng.uniform(x_l, x_u, size=(int(count), n_x)).astype(np.float64)
+
+
+def apply_label_noise(Y: np.ndarray, data_cfg: Mapping[str, Any], metadata: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
+    scale = float(data_cfg.get("noise_scale", 0.0))
+    meta = dict(metadata or {})
+    meta["noise_scale"] = scale
+    meta["label_noise_distribution"] = "normal_0_mean_1_variance_scaled" if scale != 0.0 else "none"
+    if scale == 0.0:
+        meta["label_noise_seed"] = None
+        meta["label_noise_empirical_std"] = 0.0
+        return np.asarray(Y, dtype=np.float64), meta
+
+    seed = int(data_cfg.get("seed", 0)) + int(data_cfg.get("noise_seed_offset", 7919))
+    rng = np.random.default_rng(seed)
+    noise = scale * rng.normal(loc=0.0, scale=1.0, size=np.asarray(Y).shape)
+    meta["label_noise_seed"] = seed
+    meta["label_noise_empirical_mean"] = float(np.mean(noise))
+    meta["label_noise_empirical_std"] = float(np.std(noise))
+    return np.asarray(Y, dtype=np.float64) + noise.astype(np.float64), meta
 
 
 def _solve_with_solgen(model, X: np.ndarray, data_cfg: Mapping[str, Any], *, n_ineq: int) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
@@ -373,6 +395,7 @@ def _build_poly(problem_type: str, data_cfg: Mapping[str, Any]) -> ProblemBundle
     X = _sample_box(data_cfg, count=int(data_cfg["num_samples"]), dim_key="p")
     Y, _Mu, meta = _solve_with_solgen(model, X, data_cfg, n_ineq=int(data_cfg["mi"]))
     meta.update({"problem_type": problem_type, "n_x": int(data_cfg["p"]), "n_y": int(data_cfg["n"])})
+    Y, meta = apply_label_noise(Y, data_cfg, meta)
     return ProblemBundle(problem_type=problem_type, model=model, X=X, Y=Y, metadata=meta, problem_data=problem_data)
 
 
@@ -385,6 +408,7 @@ def _build_nlp(data_cfg: Mapping[str, Any]) -> ProblemBundle:
     target = int(data_cfg.get("N_points", data_cfg.get("N_samples", 0)))
     X, Y, _Mu, meta = _solve_with_generator(generator, data_cfg, target=target)
     meta.update({"problem_type": "nlp", "n_x": int(data_cfg["n_x"]), "n_y": int(data_cfg["n_y"])})
+    Y, meta = apply_label_noise(Y, data_cfg, meta)
     return ProblemBundle(problem_type="nlp", model=model, X=X, Y=Y, metadata=meta, problem_data=problem_data)
 
 
@@ -403,6 +427,7 @@ def _build_nonconvx(data_cfg: Mapping[str, Any]) -> ProblemBundle:
     model = build_problem_model_from_data(problem_data, dtype=jnp.float64)
     X, Y, _Mu, meta = _solve_with_generator(generator, local, target=int(local["num_samples"]))
     meta.update({"problem_type": "nonconvex", "n_x": int(generator.n_x), "n_y": int(generator.n_y)})
+    Y, meta = apply_label_noise(Y, local, meta)
     return ProblemBundle(problem_type="nonconvx", model=model, X=X, Y=Y, metadata=meta, problem_data=problem_data)
 
 
@@ -436,6 +461,7 @@ def build_general_from_model_definition(case_dir: Path, data_cfg: Mapping[str, A
         "n_ineq": int(model.ineq_residual({"x": x0}, y0).shape[0]),
     }
     meta.update({"problem_type": "general", **dims, "model_definition": str(Path(case_dir) / "model_definition.py")})
+    Y, meta = apply_label_noise(Y, data_cfg, meta)
     return ProblemBundle(problem_type="general", model=model, X=X, Y=Y, metadata=meta, problem_data=dims)
 
 

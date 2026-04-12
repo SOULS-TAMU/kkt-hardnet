@@ -1,5 +1,27 @@
 # KKTHardNet Version Tracker
 
+## 0.1.6 - 2026-04-12
+
+Builder inverse mode and noisy labels.
+
+- Added `--mode` to `main.py` and `run_general.py`; `main.py` remains
+  forward-only while `run_general.py` supports builder-defined inverse problems.
+- Added `ProblemBuilder`, a symbolic Pyomo-style DSL that compiles algebraic
+  objectives, constraints, inverse parameters, and bounds into
+  `HighLevelNLPBuilder`.
+- Added inverse-parameter parsing through `DATA["inv_param"]`,
+  `DATA["inv_param_label"]`, and optional `DATA["inv_param_init"]`.
+- Added joint Optax training of inverse parameters alongside network weights
+  and biases.
+- Added final actual-vs-estimated inverse parameter comparison output.
+- Added `PROBLEM.md` with normal builder and block-system problem-definition
+  examples.
+- Added `noise_scale` data configuration for Gaussian label noise in every
+  case config and in `run_general.py`.
+- Moved non-README markdown files into `docs/`.
+- Removed root-level requirement files; editable install uses package-local
+  `kkthn/requirements.txt` and `kkthn/requirements.gpu.txt`.
+
 ## 0.1.5 - 2026-04-12
 
 Install guide and solver metadata.

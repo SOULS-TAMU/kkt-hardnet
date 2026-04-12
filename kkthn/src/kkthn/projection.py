@@ -130,6 +130,7 @@ def make_projection_layer(
 
     kkt_residual = jax.jit(_kkt_residual)
     kkt_jac_z = jax.jit(jax.jacobian(_kkt_residual, argnums=0))
+    kkt_jac_x = jax.jit(jax.jacobian(_kkt_residual, argnums=1))
     kkt_jac_yhat = jax.jit(jax.jacobian(_kkt_residual, argnums=2))
 
     @jax.jit
@@ -204,9 +205,11 @@ def make_projection_layer(
         rhs = jnp.concatenate([g_y, jnp.zeros((ne + ni + ni,), dtype=g_y.dtype)], axis=0)
         reg = cfg.backward_reg * jnp.eye(nz, dtype=Jz.dtype)
         v = jnp.linalg.solve(Jz.T + reg, rhs)
+        Jx = kkt_jac_x(z_star, x, y_hat)
         Jyhat = kkt_jac_yhat(z_star, x, y_hat)
+        g_x = -(Jx.T @ v)
         g_yhat = -(Jyhat.T @ v)
-        return jnp.zeros_like(x), g_yhat
+        return g_x, g_yhat
 
     project_single.defvjp(project_single_fwd, project_single_bwd)
     project = jax.jit(jax.vmap(project_single, in_axes=(0, 0)))

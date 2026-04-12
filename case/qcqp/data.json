@@ -6,6 +6,7 @@
   "mi": 1,
   "num_samples": 12,
   "seed": 42,
+  "noise_scale": 0.0,
   "solver": "SCS",
   "is_diag_Q": false,
   "bound_radius": 2.0,
