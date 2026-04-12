@@ -1,0 +1,12 @@
+jax==0.4.30
+jaxlib==0.4.30
+flax==0.8.5
+optax==0.2.4
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.3
+cvxpy>=1.4,<1.7
+matplotlib==3.9.4
+osqp>=0.6.7
+ecos>=2.0.14
+scs>=3.2.4

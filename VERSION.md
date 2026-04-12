@@ -1,5 +1,15 @@
 # KKTHardNet Version Tracker
 
+## 0.1.1 - 2026-04-12
+
+Packaging install dependency selection.
+
+- Added dynamic editable-install dependency selection for `pip install -e kkthn`.
+- Uses `kkthn/requirements.gpu.txt` when CUDA is detected via `CUDA_HOME`, `CUDA_PATH`, `nvidia-smi`, or `nvcc`.
+- Uses `kkthn/requirements.txt` otherwise.
+- Added `KKTHN_REQUIREMENTS=cpu|gpu` override.
+- Mirrored CPU/GPU requirement files inside the package project for install-time metadata generation.
+
 ## 0.1.0 - 2026-04-11
 
 Initial packaged KKTHardNet codespace.

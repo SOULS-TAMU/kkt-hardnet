@@ -22,6 +22,18 @@ The installable package lives in `kkthn`, using the same `src`-layout style as `
 pip install -e kkthn
 ```
 
+`pip install -e kkthn` automatically chooses package requirements:
+
+- CUDA detected: uses `kkthn/requirements.gpu.txt`
+- CUDA not detected: uses `kkthn/requirements.txt`
+
+To force one:
+
+```powershell
+$env:KKTHN_REQUIREMENTS = "gpu"  # or "cpu"
+pip install -e kkthn
+```
+
 After that, package imports work from any directory in the active environment:
 
 ```python

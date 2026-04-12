@@ -21,6 +21,23 @@ Or from inside this package folder:
 pip install -e .
 ```
 
+By default, editable installation checks for CUDA using `CUDA_HOME`, `CUDA_PATH`, `nvidia-smi`, or `nvcc`.
+
+- CUDA detected: dependencies are read from `requirements.gpu.txt`.
+- CUDA not detected: dependencies are read from `requirements.txt`.
+
+You can force either path:
+
+```powershell
+$env:KKTHN_REQUIREMENTS = "gpu"
+pip install -e kkthn
+```
+
+```powershell
+$env:KKTHN_REQUIREMENTS = "cpu"
+pip install -e kkthn
+```
+
 ## Import
 
 ```python
