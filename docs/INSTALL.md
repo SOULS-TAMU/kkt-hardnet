@@ -52,7 +52,7 @@ git clone <repo-url>
 cd KKTHardNet
 
 python3 -m venv env
-. env/bin/activate
+source env/bin/activate
 
 python -m pip install --upgrade pip
 python kkthn/install_info.py

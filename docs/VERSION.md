@@ -1,5 +1,22 @@
 # KKTHardNet Version Tracker
 
+## 0.1.7 - 2026-04-12
+
+Notebook examples.
+
+- Added seven Jupyter notebooks under `notebooks/` for QP, QCQP, NLP,
+  nonconvex, general block forward, general normal forward, and general normal
+  inverse examples.
+- Reworked notebook examples to import `kkthn` utilities directly instead of
+  shelling out to `main.py` or `run_general.py`.
+- Added inline `DATA`, `CONFIG`, and `PROJ` dictionaries to each notebook so
+  examples are self-contained and easier to edit.
+- Added notebook-local problem definitions for block-style
+  `HighLevelNLPBuilder` and normal/inverse `ProblemBuilder` workflows.
+- Ignored `notebooks/_runs/` so notebook-generated artifacts stay out of git.
+- Clarified the macOS/Linux virtual environment activation command in
+  `docs/INSTALL.md`.
+
 ## 0.1.6 - 2026-04-12
 
 Builder inverse mode and noisy labels.
