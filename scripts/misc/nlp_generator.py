@@ -891,6 +891,7 @@ class NLPGenerator:
                 "y": None,
                 "mu": default_ineq_multipliers(self.n_ineq),
                 "solve_time_sec": None,
+                "solver": self.solver,
             }
 
         mu = default_ineq_multipliers(self.n_ineq)
@@ -908,6 +909,7 @@ class NLPGenerator:
             if getattr(self.problem, "solver_stats", None) is not None
             and getattr(self.problem.solver_stats, "solve_time", None) is not None
             else None,
+            "solver": self.solver,
         }
 
     def _solve_with_gurobi(self, x_value, solver_opts=None):

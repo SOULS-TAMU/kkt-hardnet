@@ -1,5 +1,16 @@
 # KKTHardNet Version Tracker
 
+## 0.1.5 - 2026-04-12
+
+Install guide and solver metadata.
+
+- Simplified `INSTALL.md` for the normal GitHub clone workflow on Windows,
+  macOS, Linux, and WSL.
+- Added explicit solver metadata collection for generator-based NLP and
+  nonconvex label generation.
+- Corrected nonconvex metadata to report the actual SciPy SLSQP data-generation
+  solver.
+
 ## 0.1.4 - 2026-04-12
 
 Standalone utility bundle.

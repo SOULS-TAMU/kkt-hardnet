@@ -205,6 +205,7 @@ def _solve_with_generator(generator, data_cfg: Mapping[str, Any], *, target: int
     kept_y: list[np.ndarray] = []
     kept_mu: list[np.ndarray] = []
     statuses: dict[str, int] = {}
+    solver_counts: dict[str, int] = {}
     objectives: list[float] = []
     solve_time = 0.0
     n_ineq = int(getattr(generator, "n_ineq", data_cfg.get("n_ineq", data_cfg.get("mi", 0))))
@@ -219,6 +220,10 @@ def _solve_with_generator(generator, data_cfg: Mapping[str, Any], *, target: int
             result = generator.solve_for_x(np.asarray(x, dtype=np.float64))
             status = str(result.get("status", "unknown"))
             statuses[status] = statuses.get(status, 0) + 1
+            solver_used = result.get("solver")
+            if solver_used is not None:
+                solver_name = str(solver_used)
+                solver_counts[solver_name] = solver_counts.get(solver_name, 0) + 1
             solve_time += float(result.get("solve_time_sec") or 0.0)
             if status in {"optimal", "optimal_inaccurate"} and result.get("y") is not None:
                 kept_x.append(np.asarray(x, dtype=np.float64))
@@ -239,6 +244,8 @@ def _solve_with_generator(generator, data_cfg: Mapping[str, Any], *, target: int
     metadata = {
         "label_source": "optimizer",
         "status_counts": statuses,
+        "solver": next(iter(solver_counts)) if len(solver_counts) == 1 else None,
+        "solver_counts": solver_counts,
         "attempts": attempts,
         "objective_min": float(np.nanmin(objectives)) if objectives else None,
         "objective_max": float(np.nanmax(objectives)) if objectives else None,

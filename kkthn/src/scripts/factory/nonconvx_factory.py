@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
-import importlib.util
 
 import jax
 import jax.numpy as jnp
@@ -23,10 +22,6 @@ def normalize_problem_type(problem_type: str) -> str:
     return normalized
 
 
-def _has_module(name: str) -> bool:
-    return importlib.util.find_spec(name) is not None
-
-
 class DC3StyleNonconvexGenerator:
     def __init__(
         self,
@@ -45,7 +40,7 @@ class DC3StyleNonconvexGenerator:
         self.num_samples = int(num_samples)
         self.seed = int(seed)
         self.is_diag_Q = bool(is_diag_Q)
-        self.requested_solver = "ipopt" if (_has_module("ipopt") or _has_module("cyipopt")) else "scipy_slsqp"
+        self.requested_solver = "scipy_slsqp"
         self._rng = np.random.default_rng(self.seed)
         self._param_rng = np.random.default_rng(self.seed + 1)
         self._build_problem_data()
