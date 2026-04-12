@@ -1,34 +1,11 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Callable
 
 import jax
 import jax.numpy as jnp
 
 jax.config.update("jax_enable_x64", True)
-
-def _discover_nlpopt_root() -> Path | None:
-    for env_name in ("NLP_OPT_NET_ROOT", "NLPOPTNET_ROOT"):
-        raw = __import__("os").environ.get(env_name)
-        if raw:
-            candidate = Path(raw).expanduser().resolve()
-            if (candidate / "nlpopt" / "src").exists():
-                return candidate
-    for parent in Path(__file__).resolve().parents:
-        for candidate in (parent, parent / "NLPOptNet"):
-            if (candidate / "nlpopt" / "src").exists():
-                return candidate
-    return None
-
-
-PROJECT_ROOT = _discover_nlpopt_root()
-if PROJECT_ROOT is not None:
-    NLP_SRC = PROJECT_ROOT / "nlpopt" / "src"
-    for candidate in (PROJECT_ROOT, NLP_SRC):
-        if str(candidate) not in sys.path:
-            sys.path.insert(0, str(candidate))
 
 from jaxmodel import HighLevelNLPBuilder  # noqa: E402
 

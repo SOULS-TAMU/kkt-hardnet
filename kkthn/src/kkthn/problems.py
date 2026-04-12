@@ -16,27 +16,6 @@ from scipy.optimize import Bounds, NonlinearConstraint, minimize
 
 jax.config.update("jax_enable_x64", True)
 
-def _discover_nlpopt_root() -> Path | None:
-    for env_name in ("NLP_OPT_NET_ROOT", "NLPOPTNET_ROOT"):
-        raw = __import__("os").environ.get(env_name)
-        if raw:
-            candidate = Path(raw).expanduser().resolve()
-            if (candidate / "nlpopt" / "src").exists():
-                return candidate
-    for parent in Path(__file__).resolve().parents:
-        for candidate in (parent, parent / "NLPOptNet"):
-            if (candidate / "nlpopt" / "src").exists():
-                return candidate
-    return None
-
-
-PROJECT_ROOT = _discover_nlpopt_root()
-if PROJECT_ROOT is not None:
-    NLP_SRC = PROJECT_ROOT / "nlpopt" / "src"
-    for candidate in (PROJECT_ROOT, NLP_SRC):
-        if str(candidate) not in sys.path:
-            sys.path.insert(0, str(candidate))
-
 from scripts.misc.solver_config import resolve_solver_name  # noqa: E402
 from solgen import SolGenModel  # noqa: E402
 

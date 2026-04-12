@@ -2,7 +2,11 @@
 
 KKT-HardNet is a JAX pipeline for data-based regression with a hard KKT projection layer.
 
-The runner reuses the existing NLPOptNet factories for QP, QCQP, NLP, and nonconvex label generation. The `general` case loads `case/general/model_definition.py` and generates synthetic labels with SciPy SLSQP. For string-defined constraints, edit the `PROBLEM` dictionary in `run_general.py`.
+The runner is self-contained: QP, QCQP, NLP, and nonconvex problem factories,
+`jaxmodel`, and `solgen` are bundled inside this codespace. The `general` case
+loads `case/general/model_definition.py` and generates synthetic labels with
+SciPy SLSQP. For string-defined constraints, edit the `PROBLEM` dictionary in
+`run_general.py`.
 
 Typical smoke runs:
 
@@ -16,7 +20,7 @@ The package module is `kkthn`.
 
 ## Editable Package Install
 
-The installable package lives in `kkthn`, using the same `src`-layout style as `nlpopt`.
+The installable package lives in `kkthn` and uses a `src` layout.
 
 ```powershell
 pip install -e kkthn

@@ -1,3 +1,6 @@
 # Utility Scripts
 
-Place KKTHardNet-specific utility scripts here. Runtime package code lives in `kkthn` to avoid colliding with NLPOptNet's root-level `scripts` package.
+KKTHardNet utility modules live here for direct codespace usage.
+
+The same utility packages are mirrored under `kkthn/src/scripts` so editable
+package installs can run independently from any working directory.

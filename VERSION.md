@@ -1,5 +1,17 @@
 # KKTHardNet Version Tracker
 
+## 0.1.4 - 2026-04-12
+
+Standalone utility bundle.
+
+- Bundled the required `jaxmodel`, `solgen`, `scripts.factory`, and
+  `scripts.misc` utilities inside KKTHardNet.
+- Removed sibling NLPOptNet path discovery from `main.py`, `run_general.py`,
+  `kkthn.problems`, `kkthn.string_problem`, and the general model definition.
+- Mirrored utility modules under both root `scripts` and `kkthn/src/scripts` so
+  the codespace and editable package install are self-contained.
+- Updated documentation to describe KKTHardNet as an independent codespace.
+
 ## 0.1.3 - 2026-04-12
 
 Sibling relocation support.
