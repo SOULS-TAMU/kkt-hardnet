@@ -14,7 +14,7 @@ when the problem has many repeated constraints or matrix/tensor structure.
 The problem is defined in `build_problem()`:
 
 ```python
-from kkthn import ProblemBuilder
+from kkthn.builder import ProblemBuilder
 
 
 def build_problem() -> ProblemBuilder:
@@ -40,6 +40,19 @@ The builder compiles this symbolic problem into the internal
 `HighLevelNLPBuilder` model. Constraints are grouped into equality and
 inequality blocks before JAX tracing, so preprocessing is faster than parsing
 strings repeatedly.
+
+The runner in `run_general.py` calls the builder instance directly:
+
+```python
+builder = build_problem()
+builder.run(args, root=ROOT, data=DATA, train=TRAIN)
+```
+
+The standard configured cases use the same class entry point:
+
+```python
+ProblemBuilder.run(args, root=ROOT)
+```
 
 ### Forward Mode
 
@@ -157,6 +170,24 @@ Example:
 builder.objective = 0.5 * y.y1**2 + builder.sin(y.y2)
 builder.constraints.add(builder.exp(y.y1) + y.y2 <= theta.a0 + x.x1)
 ```
+
+### Existing CSV Dataset
+
+If labels already exist in a CSV file, define the symbols and constraints, then
+attach the dataset to the builder. In this mode the objective can be omitted
+because preprocessing reads the provided labels instead of solving the problem
+with an optimizer.
+
+```python
+builder.set_dataset(
+    "case/general/my_dataset.csv",
+    parameter_columns=["x1", "x2"],
+    variable_columns=["y1", "y2", "y3"],
+)
+```
+
+The run folder will include `parameters.csv` and `variables.csv` extracted from
+those columns before training starts.
 
 ## Block-Structured Problem
 

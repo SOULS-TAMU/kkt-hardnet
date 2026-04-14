@@ -50,5 +50,13 @@ pip install -e .
 ## Import
 
 ```python
-from kkthn import KKTTrainConfig, ProblemBuilder, train_kkt_hardnet
+from kkthn import KKTTrainConfig, train_kkt_hardnet
+from kkthn.builder import ProblemBuilder
+```
+
+`ProblemBuilder` exposes the shared runner:
+
+```python
+ProblemBuilder.run(args, root=ROOT)                      # standard case folders
+builder.run(args, root=ROOT, data=DATA, train=TRAIN)     # builder-defined case
 ```

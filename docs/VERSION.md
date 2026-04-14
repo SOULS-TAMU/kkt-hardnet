@@ -1,5 +1,22 @@
 # KKTHardNet Version Tracker
 
+## 0.1.8 - 2026-04-14
+
+Runner artifacts and builder runner path.
+
+- Consolidated run artifacts around `config.json`, `history.csv`,
+  `summary.json`, `model_weights.npz`, and `predictions.csv`.
+- Added builder preprocessing support for CSV datasets through
+  `ProblemBuilder.set_dataset(...)`, saving `parameters.csv` and
+  `variables.csv` for builder-defined general runs.
+- Renamed `kkthn.problem_builder` to `kkthn.builder`.
+- Moved the shared runner entry point onto `ProblemBuilder.run(...)`; standard
+  configured cases call `ProblemBuilder.run(args, root=ROOT)`, while
+  builder-defined cases call `builder.run(args, root=ROOT, data=DATA,
+  train=TRAIN)`.
+- Updated notebooks to use the new artifact writer and added markdown sections
+  between setup, configuration, problem definition, training, and summary cells.
+
 ## 0.1.7 - 2026-04-12
 
 Notebook examples.

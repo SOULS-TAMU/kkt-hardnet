@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import time
 from dataclasses import asdict, dataclass
@@ -54,7 +55,7 @@ def _split_dataset(X: np.ndarray, Y: np.ndarray, *, train_frac: float, seed: int
     n_train = max(1, min(int(float(train_frac) * len(idx)), len(idx) - 1))
     train_idx = idx[:n_train]
     val_idx = idx[n_train:]
-    return X[train_idx], Y[train_idx], X[val_idx], Y[val_idx]
+    return X[train_idx], Y[train_idx], X[val_idx], Y[val_idx], train_idx, val_idx
 
 
 def _iterate_minibatches(X, Y, *, batch_size: int, seed: int, drop_last: bool):
@@ -93,6 +94,112 @@ def _json_safe(value: Any):
     if isinstance(value, (list, tuple)):
         return [_json_safe(v) for v in value]
     return value
+
+
+def _write_history_csv(path: Path, history: list[dict[str, Any]]) -> None:
+    if not history:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(history[0].keys())
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in history:
+            writer.writerow({key: _json_safe(row.get(key)) for key in fieldnames})
+
+
+def _fallback_names(prefix: str, count: int) -> list[str]:
+    return [f"{prefix}{idx}" for idx in range(int(count))]
+
+
+def _named_columns(metadata: dict[str, Any] | None, *, data_n_x: int, n_y: int) -> tuple[list[str], list[str]]:
+    problem_meta = {}
+    if isinstance(metadata, dict):
+        problem_meta = metadata.get("problem") if isinstance(metadata.get("problem"), dict) else metadata
+
+    parameter_names = list(problem_meta.get("parameter_names", [])) if isinstance(problem_meta, dict) else []
+    variable_names = list(problem_meta.get("variable_names", [])) if isinstance(problem_meta, dict) else []
+
+    if len(parameter_names) != int(data_n_x):
+        parameter_names = _fallback_names("x", int(data_n_x))
+    if len(variable_names) != int(n_y):
+        variable_names = _fallback_names("y", int(n_y))
+    return [str(name) for name in parameter_names], [str(name) for name in variable_names]
+
+
+def _write_predictions_csv(
+    path: Path,
+    *,
+    X: np.ndarray,
+    Y: np.ndarray,
+    Y_hat: np.ndarray,
+    Y_proj: np.ndarray,
+    train_idx: np.ndarray,
+    val_idx: np.ndarray,
+    parameter_names: list[str],
+    variable_names: list[str],
+) -> None:
+    split_by_index = {int(idx): "train" for idx in np.asarray(train_idx, dtype=int).reshape(-1)}
+    split_by_index.update({int(idx): "validation" for idx in np.asarray(val_idx, dtype=int).reshape(-1)})
+    fieldnames = (
+        ["sample_index", "split"]
+        + [f"param_{name}" for name in parameter_names]
+        + [f"true_{name}" for name in variable_names]
+        + [f"raw_pred_{name}" for name in variable_names]
+        + [f"pred_{name}" for name in variable_names]
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for sample_idx in range(int(X.shape[0])):
+            row: dict[str, Any] = {
+                "sample_index": sample_idx,
+                "split": split_by_index.get(sample_idx, ""),
+            }
+            for name, value in zip(parameter_names, X[sample_idx]):
+                row[f"param_{name}"] = float(value)
+            for name, value in zip(variable_names, Y[sample_idx]):
+                row[f"true_{name}"] = float(value)
+            for name, value in zip(variable_names, Y_hat[sample_idx]):
+                row[f"raw_pred_{name}"] = float(value)
+            for name, value in zip(variable_names, Y_proj[sample_idx]):
+                row[f"pred_{name}"] = float(value)
+            writer.writerow(row)
+
+
+def _save_model_weights(path: Path, params: Any, *, inverse_mode: bool) -> dict[str, Any]:
+    params_host = jax.device_get(params)
+    network = params_host["network"] if inverse_mode else params_host
+    arrays: dict[str, np.ndarray] = {}
+    layers = []
+    for idx, layer in enumerate(network):
+        w_key = f"layer_{idx}_W"
+        b_key = f"layer_{idx}_b"
+        arrays[w_key] = np.asarray(layer["W"])
+        arrays[b_key] = np.asarray(layer["b"])
+        layers.append(
+            {
+                "index": idx,
+                "weight_key": w_key,
+                "bias_key": b_key,
+                "weight_shape": list(arrays[w_key].shape),
+                "bias_shape": list(arrays[b_key].shape),
+            }
+        )
+    manifest: dict[str, Any] = {
+        "format": "kkthn_mlp_weights_v1",
+        "file": path.name,
+        "layers": layers,
+        "inverse_mode": bool(inverse_mode),
+    }
+    if inverse_mode:
+        arrays["inverse_parameters"] = np.asarray(params_host["inverse"])
+        manifest["inverse_parameter_key"] = "inverse_parameters"
+        manifest["inverse_parameter_shape"] = list(arrays["inverse_parameters"].shape)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(path, **arrays)
+    return manifest
 
 
 def train_kkt_hardnet(
@@ -148,7 +255,8 @@ def train_kkt_hardnet(
     if Y_np.shape[1] != dims["n_y"]:
         raise ValueError(f"Y has {Y_np.shape[1]} columns, expected {dims['n_y']}.")
 
-    Xtr, Ytr, Xva, Yva = _split_dataset(X_np, Y_np, train_frac=cfg.train_frac, seed=cfg.seed)
+    Xtr, Ytr, Xva, Yva, train_idx, val_idx = _split_dataset(X_np, Y_np, train_frac=cfg.train_frac, seed=cfg.seed)
+    Xall_j = jnp.asarray(X_np, dtype=train_dtype)
     Xtr_j = jnp.asarray(Xtr, dtype=train_dtype)
     Ytr_j = jnp.asarray(Ytr, dtype=train_dtype)
     Xva_j = jnp.asarray(Xva, dtype=train_dtype)
@@ -325,6 +433,7 @@ def train_kkt_hardnet(
             "train_batches": int(epoch_train_batches),
             "validation_batches": int(epoch_val_batches),
             "train_time_per_batch_sec": float(train_epoch_time / max(1, epoch_train_batches)),
+            "train_step_time_per_batch_sec": float(epoch_train_step_time / max(1, epoch_train_batches)),
             "validation_time_per_batch_sec": float(validation_epoch_time / max(1, epoch_val_batches)),
         }
         history.append(row)
@@ -341,6 +450,8 @@ def train_kkt_hardnet(
     train_time = time.perf_counter() - t0
     va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj = eval_metrics(params, Xva_j, Yva_j)
     _sync((va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj))
+    all_hat, all_proj = model_forward(params, Xall_j)
+    _sync((all_hat, all_proj))
 
     sample_train_x = jnp.asarray(warm_train[0], dtype=train_dtype)
     sample_train_y = jnp.asarray(warm_train[1], dtype=train_dtype)
@@ -425,6 +536,7 @@ def train_kkt_hardnet(
             "comparison": rows,
         }
 
+    parameter_names, variable_names = _named_columns(metadata, data_n_x=data_n_x, n_y=dims["n_y"])
     final = history[-1]
     out = {
         "dims": dims,
@@ -432,37 +544,86 @@ def train_kkt_hardnet(
         "metadata": metadata or {},
         "history": history,
         "final": final,
+        "final_metrics": final,
         "training_wall_time_sec": train_time,
         "timing_profile": timing_profile,
         "inverse_parameters": inverse_summary,
         "params": params,
+        "column_names": {
+            "parameters": parameter_names,
+            "variables": variable_names,
+        },
+        "predictions": {
+            "X": X_np,
+            "Y": Y_np,
+            "Y_hat": np.asarray(all_hat),
+            "Y_proj": np.asarray(all_proj),
+            "train_indices": train_idx,
+            "validation_indices": val_idx,
+        },
         "val_predictions": {
             "X": np.asarray(Xva_j),
             "Y": np.asarray(Yva_j),
             "Y_hat": np.asarray(va_hat),
             "Y_proj": np.asarray(va_proj),
+            "sample_indices": val_idx,
         },
     }
 
     if output_dir is not None:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
-        with open(output / "history.json", "w", encoding="utf-8") as fh:
-            json.dump(_json_safe(history), fh, indent=2)
-        summary = {k: v for k, v in out.items() if k not in {"params", "val_predictions", "history"}}
+        history_file = output / "history.csv"
+        predictions_file = output / "predictions.csv"
+        weights_file = output / "model_weights.npz"
+        inverse_file = output / "inverse_comparison.json"
+        _write_history_csv(history_file, history)
+        _write_predictions_csv(
+            predictions_file,
+            X=out["predictions"]["X"],
+            Y=out["predictions"]["Y"],
+            Y_hat=out["predictions"]["Y_hat"],
+            Y_proj=out["predictions"]["Y_proj"],
+            train_idx=train_idx,
+            val_idx=val_idx,
+            parameter_names=parameter_names,
+            variable_names=variable_names,
+        )
+        weights_manifest = _save_model_weights(weights_file, params, inverse_mode=inverse_mode)
+        artifacts = {
+            "history": history_file.name,
+            "summary": "summary.json",
+            "model_weights": weights_file.name,
+            "predictions": predictions_file.name,
+        }
+        if (output / "config.json").exists():
+            artifacts["config"] = "config.json"
+        if inverse_summary is not None:
+            artifacts["inverse_comparison"] = inverse_file.name
+        summary = {
+            k: v
+            for k, v in out.items()
+            if k not in {"params", "val_predictions", "history", "predictions"}
+        }
+        summary["model_weights"] = weights_manifest
+        summary["artifacts"] = artifacts
+        summary["metrics_at_end"] = final
+        summary["epoch_and_batch_timing"] = {
+            "final_train_epoch_time_sec": final["train_epoch_time_sec"],
+            "final_validation_epoch_time_sec": final["validation_epoch_time_sec"],
+            "final_train_time_per_batch_sec": final["train_time_per_batch_sec"],
+            "final_train_step_time_per_batch_sec": final["train_step_time_per_batch_sec"],
+            "final_validation_time_per_batch_sec": final["validation_time_per_batch_sec"],
+            "avg_train_time_per_epoch_sec": timing_profile["avg_train_time_per_epoch_sec"],
+            "avg_validation_time_per_epoch_sec": timing_profile["avg_validation_time_per_epoch_sec"],
+            "avg_train_time_per_batch_sec": timing_profile["avg_train_time_per_batch_sec"],
+            "avg_validation_time_per_batch_sec": timing_profile["avg_validation_time_per_batch_sec"],
+        }
         with open(output / "summary.json", "w", encoding="utf-8") as fh:
             json.dump(_json_safe(summary), fh, indent=2, sort_keys=True)
         if inverse_summary is not None:
-            with open(output / "inverse_comparison.json", "w", encoding="utf-8") as fh:
+            with open(inverse_file, "w", encoding="utf-8") as fh:
                 json.dump(_json_safe(inverse_summary), fh, indent=2, sort_keys=True)
-        np.savez(
-            output / "predictions.npz",
-            X=out["val_predictions"]["X"],
-            Y=out["val_predictions"]["Y"],
-            Y_hat=out["val_predictions"]["Y_hat"],
-            Y_proj=out["val_predictions"]["Y_proj"],
-        )
-        np.savez(output / "trained_params.npz", params=np.asarray(jax.device_get(params), dtype=object))
         out["output_dir"] = str(output)
         print(f"Saved run artifacts: {output}")
 

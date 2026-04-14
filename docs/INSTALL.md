@@ -17,18 +17,35 @@ Replace `<repo-url>` with the GitHub URL for this repository.
 ## Windows PowerShell
 
 ```powershell
+# Clone the repository
 git clone <repo-url>
+
+# Set the Repository
 cd KKTHardNet
+
+# Create the virtual environment or use one if you have available.
 
 py -3.9 -m venv env
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+# Activate the environment
 .\env\Scripts\Activate.ps1
 
+# Upgrade pip version
 python -m pip install --upgrade pip
+
+# Check your hardware configuration (cpu/gpu)
 python kkthn\install_info.py
+
+# $env:KKTHN_REQUIREMENTS = "gpu" (If GPU is available)
+
+# Install the KKT-HardNet Package
 python -m pip install -e kkthn
 
-python -c "import kkthn; print(kkthn.__version__)"
+# Test if installation is working
+python -c "import kkthn; from kkthn.builder import ProblemBuilder; print(kkthn.__version__)"
+
+# Smoke run
 python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2
 ```
 
@@ -48,17 +65,33 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ## macOS Or Linux
 
 ```sh
+# Clone the repository
 git clone <repo-url>
+
+# Set working directory
 cd KKTHardNet
 
+# Create virtual environment or use one if available
 python3 -m venv env
+
+# Activate the virtual environment
 source env/bin/activate
 
+# Install or upgrade pip
 python -m pip install --upgrade pip
+
+# Check your hardware (cpu/gpu)
 python kkthn/install_info.py
+
+# export KKTHN_REQUIREMENTS=gpu (If you have gpu support)
+
+# Install the KKT-HardNet package
 python -m pip install -e kkthn
 
-python -c "import kkthn; print(kkthn.__version__)"
+# Test for installed package
+python -c "import kkthn; from kkthn.builder import ProblemBuilder; print(kkthn.__version__)"
+
+# Smoke Run
 python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2
 ```
 
@@ -111,44 +144,10 @@ python -m pip install -e kkthn
 Do not force GPU on native Windows unless you are intentionally testing a custom
 JAX setup.
 
-## Run Examples
-
-Generate labels only:
-
-```sh
-python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2
-```
-
-Generate noisy labels:
-
-```sh
-python main.py --type qp --action data --p 2 --n 4 --me 1 --mi 1 --samples 2 --noise_scale 0.1
-```
-
-Run a small training job:
-
-```sh
-python main.py --type qp --action run --p 2 --n 4 --me 1 --mi 1 --samples 8 --epochs 1 --batch_size 2
-```
-
-Run the builder-defined general example:
-
-```sh
-python run_general.py --mode forward --samples 8 --epochs 1 --batch_size 2
-```
-
-For a builder-defined inverse problem, edit `build_problem()`,
-`DATA["inv_param"]`, `DATA["inv_param_label"]`, and optionally
-`DATA["inv_param_init"]` in `run_general.py`, then run:
-
-```sh
-python run_general.py --mode inverse
-```
-
 ## Verify Package Location
 
 ```sh
-python -c "import kkthn, pathlib; print(kkthn.__version__); print(pathlib.Path(kkthn.__file__).resolve())"
+python -c "import kkthn, pathlib; from kkthn.builder import ProblemBuilder; print(kkthn.__version__); print(pathlib.Path(kkthn.__file__).resolve())"
 ```
 
 The printed path should point inside:

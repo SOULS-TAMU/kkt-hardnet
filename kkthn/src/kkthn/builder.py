@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from pathlib import Path
+from typing import Any, Callable, Iterable
 
 import jax.numpy as jnp
 import numpy as np
@@ -32,6 +33,13 @@ class Constraint:
     residual: "Expression"
     kind: str
     text: str
+
+
+@dataclass(frozen=True)
+class DatasetSpec:
+    path: str
+    parameter_columns: list[str]
+    variable_columns: list[str]
 
 
 class Expression:
@@ -202,6 +210,7 @@ class ProblemBuilder:
         self.constraints = ConstraintList()
         self.bounds = BoundSpec()
         self.y_bound = float(y_bound)
+        self.dataset_spec: DatasetSpec | None = None
 
     def add_parameter(self, names: str | Iterable[str]):
         for name in _coerce_names(names):
@@ -223,6 +232,87 @@ class ProblemBuilder:
                 raise ValueError(f"Duplicate symbol name '{name}'.")
             self.inverse_parameter_names.append(name)
         return self.inverse_parameter
+
+    def set_dataset(
+        self,
+        path: str | Path,
+        *,
+        parameter_columns: Iterable[str],
+        variable_columns: Iterable[str],
+    ) -> "ProblemBuilder":
+        """Use a CSV dataset instead of solving the symbolic problem for labels."""
+
+        self.dataset_spec = DatasetSpec(
+            path=str(path),
+            parameter_columns=_coerce_names(parameter_columns),
+            variable_columns=_coerce_names(variable_columns),
+        )
+        return self
+
+    def use_dataset(
+        self,
+        path: str | Path,
+        *,
+        parameter_columns: Iterable[str],
+        variable_columns: Iterable[str],
+    ) -> "ProblemBuilder":
+        return self.set_dataset(path, parameter_columns=parameter_columns, variable_columns=variable_columns)
+
+    def run(
+        self_or_args,
+        args=None,
+        *,
+        root: Path,
+        data: dict[str, Any] | None = None,
+        train: dict[str, Any] | None = None,
+        proj: dict[str, Any] | None = None,
+        model=None,
+        X=None,
+        Y=None,
+        metadata: dict[str, Any] | None = None,
+        problem_meta: dict[str, Any] | None = None,
+        parameter_names: list[str] | None = None,
+        variable_names: list[str] | None = None,
+        inverse_param_init=None,
+        inverse_param_labels=None,
+        inverse_param_names: list[str] | None = None,
+    ) -> int:
+        """Run either a standard configured case or this builder-defined case."""
+
+        from .utils import _run_builder_case, _run_prepared_case, _run_standard_case
+
+        if isinstance(self_or_args, ProblemBuilder):
+            if args is None:
+                raise ValueError("Builder runs require parsed CLI args.")
+            if data is None or train is None:
+                raise ValueError("Builder runs require data and train dictionaries.")
+            return _run_builder_case(args, root=root, builder=self_or_args, data=data, train=train, proj=proj)
+
+        if args is not None:
+            raise ValueError("Use ProblemBuilder.run(args, root=...) or builder.run(args, root=..., data=..., train=...).")
+        if model is not None or X is not None or Y is not None:
+            if model is None or X is None or Y is None:
+                raise ValueError("Prepared runs require model, X, and Y.")
+            if data is None or train is None:
+                raise ValueError("Prepared runs require data and train dictionaries.")
+            return _run_prepared_case(
+                self_or_args,
+                root=root,
+                model=model,
+                X=X,
+                Y=Y,
+                data=data,
+                train=train,
+                proj=proj,
+                metadata=metadata,
+                problem_meta=problem_meta,
+                parameter_names=parameter_names,
+                variable_names=variable_names,
+                inverse_param_init=inverse_param_init,
+                inverse_param_labels=inverse_param_labels,
+                inverse_param_names=inverse_param_names,
+            )
+        return _run_standard_case(self_or_args, root=root, data=data, train=train, proj=proj)
 
     def _check_symbol(self, kind: str, name: str) -> None:
         pools = {
@@ -257,8 +347,15 @@ class ProblemBuilder:
         expr = _as_expr(expr)
         return Expression(lambda ctx, e=expr: jnp.abs(e.eval(ctx)), f"abs({expr.text})")
 
-    def build_model(self, *, dtype=jnp.float64, train_inverse: bool = False, inverse_values=None):
-        if self.objective is None:
+    def build_model(
+        self,
+        *,
+        dtype=jnp.float64,
+        train_inverse: bool = False,
+        inverse_values=None,
+        allow_missing_objective: bool = False,
+    ):
+        if self.objective is None and not allow_missing_objective:
             raise ValueError("Set builder.objective before build_model().")
         if not self.parameter_names:
             raise ValueError("Add at least one parameter.")
@@ -290,6 +387,8 @@ class ProblemBuilder:
             )
 
         def objective(params, vars_dict):
+            if self.objective is None:
+                return jnp.asarray(0.0, dtype=dtype)
             return _as_expr(self.objective).eval(make_ctx(params, vars_dict))
 
         builder = (
@@ -345,5 +444,10 @@ class ProblemBuilder:
                 "lower": None if self.bounds.lower is None else np.asarray(self.bounds.lower).reshape(-1).tolist(),
                 "upper": None if self.bounds.upper is None else np.asarray(self.bounds.upper).reshape(-1).tolist(),
                 "default_y_bound": self.y_bound,
+            },
+            "dataset": None if self.dataset_spec is None else {
+                "path": self.dataset_spec.path,
+                "parameter_columns": list(self.dataset_spec.parameter_columns),
+                "variable_columns": list(self.dataset_spec.variable_columns),
             },
         }
