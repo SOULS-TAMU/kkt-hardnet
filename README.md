@@ -1,5 +1,10 @@
 # KKTHardNet
 
+**Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints**
+
+This repository contains the official implementation of KKT-Hardnet.  
+📄 **Paper:** [Physics-Informed Neural Networks with Hard Nonlinear Equality and Inequality Constraints](https://doi.org/10.1016/j.compchemeng.2025.109418)
+
 KKTHardNet is a JAX-based KKT-HardNet pipeline for learning decision variables
 from problem parameters while enforcing equality, inequality, and bound
 constraints through a hard projection layer.
