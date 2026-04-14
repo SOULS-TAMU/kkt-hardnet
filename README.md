@@ -235,3 +235,19 @@ See the `docs` folder for focused references:
 - [docs/PROBLEM.md](docs/PROBLEM.md): general-problem builder and block-style
   problem definitions.
 - [docs/VERSION.md](docs/VERSION.md): version history and project notes.
+
+⚠️ Please cite our work if you use this code in your research.
+Citation formats are provided below.
+
+arXiv Preprint: https://arxiv.org/pdf/2507.08124
+Journal: https://doi.org/10.1016/j.compchemeng.2025.109418
+
+```bibtex
+@article{iftakher2025physics,
+  title={Physics-informed neural networks with hard nonlinear equality and inequality constraints},
+  author={Iftakher, Ashfaq and Golder, Rahul and Roy, Bimol Nath and Hasan, MM Faruque},
+  journal={Computers \& Chemical Engineering},
+  pages={109418},
+  year={2025},
+  publisher={Elsevier}
+}
