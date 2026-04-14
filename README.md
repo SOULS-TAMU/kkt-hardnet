@@ -48,7 +48,7 @@ GPU wheels.
 ### Mac/Linux
 
 ```sh
-git clone <repo-url>
+git clone https://github.com/SOULS-TAMU/kkt-hardnet.git
 cd KKTHardNet
 
 python3 -m venv env
