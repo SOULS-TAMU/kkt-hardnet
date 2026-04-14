@@ -13,7 +13,7 @@ general problems.
 ### Windows PowerShell
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/SOULS-TAMU/kkt-hardnet.git
 cd KKTHardNet
 
 py -3.9 -m venv env
