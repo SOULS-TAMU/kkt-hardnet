@@ -177,5 +177,4 @@ The CSV headers must match the parameter and variable names declared in the mode
 - `notebooks/`: example workflows for QP, QCQP, NLP, nonconvex, and general cases
 - `docs/INSTALL.md`: install notes
 - `docs/PROBLEM.md`: modeling workflow
-- `docs/PUBLISH.md`: build and publish instructions
 - `docs/VERSION.md`: version notes
