@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import csv
+import json
+import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -8,6 +11,11 @@ import jax.numpy as jnp
 import numpy as np
 
 from jaxmodel import HighLevelNLPBuilder
+
+from .backbone import make_batched_mlp_apply
+from .projection import ProjectionSettings, make_projection_layer
+from .string_problem import build_model_from_string_problem
+from .training import KKTTrainConfig, load_model_weights, train_kkt_hardnet
 
 
 def _coerce_names(names: str | Iterable[str], *, allow_empty: bool = False) -> list[str]:
@@ -20,6 +28,37 @@ def _coerce_names(names: str | Iterable[str], *, allow_empty: bool = False) -> l
     if len(set(out)) != len(out):
         raise ValueError(f"Names must be unique, got {out}.")
     return out
+
+
+def _dtype(name: str):
+    normalized = str(name).lower()
+    if normalized in {"float32", "fp32", "32"}:
+        return jnp.float32
+    if normalized in {"float64", "fp64", "64"}:
+        return jnp.float64
+    raise ValueError(f"Unsupported dtype '{name}'.")
+
+
+def _json_safe(value: Any):
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        return float(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+def _timestamp() -> str:
+    return time.strftime("%Y%m%d_%H%M%S")
+
+
+def _resolve_path(path: str | Path) -> Path:
+    return Path(path).expanduser().resolve()
 
 
 def _as_expr(value) -> "Expression":
@@ -37,9 +76,42 @@ class Constraint:
 
 @dataclass(frozen=True)
 class DatasetSpec:
-    path: str
-    parameter_columns: list[str]
-    variable_columns: list[str]
+    parameters_path: str
+    variables_path: str | None = None
+
+
+@dataclass(frozen=True)
+class _EvalContext:
+    y: jnp.ndarray
+    x: jnp.ndarray
+    variable_index: dict[str, int]
+    parameter_index: dict[str, int]
+    inverse_index: dict[str, int]
+    inverse_values: jnp.ndarray
+    train_inverse: bool
+    forward_dim: int
+
+    def value(self, kind: str, name: str):
+        if kind == "variable":
+            return self.y[self.variable_index[name]]
+        if kind == "parameter":
+            return self.x[self.parameter_index[name]]
+        if kind == "inverse_parameter":
+            idx = self.inverse_index[name]
+            if self.train_inverse:
+                return self.x[self.forward_dim + idx]
+            return self.inverse_values[idx]
+        raise KeyError(f"Unknown symbol kind '{kind}'.")
+
+
+@dataclass
+class _InferenceState:
+    task: str
+    model: Any
+    params: Any
+    projection: Any
+    data_n_x: int
+    output_dir: str | None
 
 
 class Expression:
@@ -105,7 +177,7 @@ class Expression:
 
 
 class _SymbolNamespace:
-    def __init__(self, builder: "ProblemBuilder", kind: str) -> None:
+    def __init__(self, builder: "KKTHardNet", kind: str) -> None:
         self._builder = builder
         self._kind = kind
 
@@ -139,67 +211,19 @@ class ConstraintList:
         return self
 
 
-class BoundSpec:
-    def __init__(self) -> None:
-        self.lower = None
-        self.upper = None
-
-    def set(self, *, lower=None, upper=None) -> "BoundSpec":
-        self.lower = lower
-        self.upper = upper
-        return self
-
-    def set_all(self, *, lower=None, upper=None) -> "BoundSpec":
-        return self.set(lower=lower, upper=upper)
-
-    def __call__(self, *, lower=None, upper=None) -> "BoundSpec":
-        return self.set(lower=lower, upper=upper)
-
-    def arrays(self, n_y: int, *, dtype, default_radius: float):
-        lower = -float(default_radius) if self.lower is None else self.lower
-        upper = float(default_radius) if self.upper is None else self.upper
-        return _bound_array(lower, n_y, dtype), _bound_array(upper, n_y, dtype)
-
-
-def _bound_array(value, n_y: int, dtype):
-    arr = np.asarray(value, dtype=np.float64)
-    if arr.shape == ():
-        arr = np.full((int(n_y),), float(arr), dtype=np.float64)
-    arr = arr.reshape(-1)
-    if arr.size != int(n_y):
-        raise ValueError(f"Bounds must be scalar or length {n_y}, got length {arr.size}.")
-    return jnp.asarray(arr, dtype=dtype)
-
-
-@dataclass(frozen=True)
-class _EvalContext:
-    y: jnp.ndarray
-    x: jnp.ndarray
-    variable_index: dict[str, int]
-    parameter_index: dict[str, int]
-    inverse_index: dict[str, int]
-    inverse_values: jnp.ndarray
-    train_inverse: bool
-    forward_dim: int
-
-    def value(self, kind: str, name: str):
-        if kind == "variable":
-            return self.y[self.variable_index[name]]
-        if kind == "parameter":
-            return self.x[self.parameter_index[name]]
-        if kind == "inverse_parameter":
-            idx = self.inverse_index[name]
-            if self.train_inverse:
-                return self.x[self.forward_dim + idx]
-            return self.inverse_values[idx]
-        raise KeyError(f"Unknown symbol kind '{kind}'.")
-
-
-class ProblemBuilder:
-    def __init__(self, *, y_bound: float = 10.0) -> None:
+class KKTHardNet:
+    def __init__(
+        self,
+        name: str = "kkthardnet",
+        *,
+        train: dict[str, Any] | KKTTrainConfig | None = None,
+        projection: dict[str, Any] | ProjectionSettings | None = None,
+    ) -> None:
+        self.name = str(name)
         self.parameter_names: list[str] = []
         self.variable_names: list[str] = []
         self.inverse_parameter_names: list[str] = []
+        self._inverse_initial_values: list[float] = []
         self.parameter = _SymbolNamespace(self, "parameter")
         self.variable = _SymbolNamespace(self, "variable")
         self.inverse_parameter = _SymbolNamespace(self, "inverse_parameter")
@@ -208,9 +232,11 @@ class ProblemBuilder:
         self.inverse_parameters = self.inverse_parameter
         self.objective: Expression | None = None
         self.constraints = ConstraintList()
-        self.bounds = BoundSpec()
-        self.y_bound = float(y_bound)
         self.dataset_spec: DatasetSpec | None = None
+        self._train_config = self._normalize_train_config(train)
+        self._projection_config = self._normalize_projection_config(projection)
+        self._inference_state: _InferenceState | None = None
+        self._metadata_path: str | None = None
 
     def add_parameter(self, names: str | Iterable[str]):
         for name in _coerce_names(names):
@@ -226,102 +252,128 @@ class ProblemBuilder:
             self.variable_names.append(name)
         return self.variable
 
-    def add_inverse_parameter(self, names: str | Iterable[str]):
-        for name in _coerce_names(names, allow_empty=True):
+    def add_inverse_parameter(
+        self,
+        names: str | Iterable[str],
+        *,
+        init_value: float | Iterable[float] | None = None,
+    ):
+        new_names = _coerce_names(names, allow_empty=True)
+        if init_value is None:
+            init_values = [0.0] * len(new_names)
+        else:
+            init_arr = np.asarray(init_value, dtype=np.float64).reshape(-1)
+            if init_arr.size == 1 and len(new_names) > 1:
+                init_arr = np.full((len(new_names),), float(init_arr[0]), dtype=np.float64)
+            if init_arr.size != len(new_names):
+                raise ValueError("init_value must be scalar or match the number of inverse parameters.")
+            init_values = init_arr.astype(np.float64).tolist()
+        for name, value in zip(new_names, init_values):
             if name in self.parameter_names or name in self.variable_names or name in self.inverse_parameter_names:
                 raise ValueError(f"Duplicate symbol name '{name}'.")
             self.inverse_parameter_names.append(name)
+            self._inverse_initial_values.append(float(value))
         return self.inverse_parameter
 
-    def set_dataset(
-        self,
-        path: str | Path,
-        *,
-        parameter_columns: Iterable[str],
-        variable_columns: Iterable[str],
-    ) -> "ProblemBuilder":
-        """Use a CSV dataset instead of solving the symbolic problem for labels."""
-
-        self.dataset_spec = DatasetSpec(
-            path=str(path),
-            parameter_columns=_coerce_names(parameter_columns),
-            variable_columns=_coerce_names(variable_columns),
-        )
+    def dataset(self, *, parameters: str | Path, variables: str | Path | None = None) -> "KKTHardNet":
+        self.dataset_spec = DatasetSpec(parameters_path=str(parameters), variables_path=None if variables is None else str(variables))
         return self
 
-    def use_dataset(
-        self,
-        path: str | Path,
-        *,
-        parameter_columns: Iterable[str],
-        variable_columns: Iterable[str],
-    ) -> "ProblemBuilder":
-        return self.set_dataset(path, parameter_columns=parameter_columns, variable_columns=variable_columns)
+    def set_dataset(self, *, parameters: str | Path, variables: str | Path | None = None) -> "KKTHardNet":
+        return self.dataset(parameters=parameters, variables=variables)
 
-    def run(
-        self_or_args,
-        args=None,
-        *,
-        root: Path,
-        data: dict[str, Any] | None = None,
-        train: dict[str, Any] | None = None,
-        proj: dict[str, Any] | None = None,
-        model=None,
-        X=None,
-        Y=None,
-        metadata: dict[str, Any] | None = None,
-        problem_meta: dict[str, Any] | None = None,
-        parameter_names: list[str] | None = None,
-        variable_names: list[str] | None = None,
-        inverse_param_init=None,
-        inverse_param_labels=None,
-        inverse_param_names: list[str] | None = None,
-    ) -> int:
-        """Run either a standard configured case or this builder-defined case."""
+    def use_dataset(self, *, parameters: str | Path, variables: str | Path | None = None) -> "KKTHardNet":
+        return self.dataset(parameters=parameters, variables=variables)
 
-        from .utils import _run_builder_case, _run_prepared_case, _run_standard_case
+    def set_train_config(self, config: dict[str, Any] | KKTTrainConfig) -> "KKTHardNet":
+        self._train_config = self._normalize_train_config(config)
+        return self
 
-        if isinstance(self_or_args, ProblemBuilder):
-            if args is None:
-                raise ValueError("Builder runs require parsed CLI args.")
-            if data is None or train is None:
-                raise ValueError("Builder runs require data and train dictionaries.")
-            return _run_builder_case(args, root=root, builder=self_or_args, data=data, train=train, proj=proj)
+    def set_projection_config(self, config: dict[str, Any] | ProjectionSettings) -> "KKTHardNet":
+        self._projection_config = self._normalize_projection_config(config)
+        return self
 
-        if args is not None:
-            raise ValueError("Use ProblemBuilder.run(args, root=...) or builder.run(args, root=..., data=..., train=...).")
-        if model is not None or X is not None or Y is not None:
-            if model is None or X is None or Y is None:
-                raise ValueError("Prepared runs require model, X, and Y.")
-            if data is None or train is None:
-                raise ValueError("Prepared runs require data and train dictionaries.")
-            return _run_prepared_case(
-                self_or_args,
-                root=root,
-                model=model,
-                X=X,
-                Y=Y,
-                data=data,
-                train=train,
-                proj=proj,
-                metadata=metadata,
-                problem_meta=problem_meta,
-                parameter_names=parameter_names,
-                variable_names=variable_names,
-                inverse_param_init=inverse_param_init,
-                inverse_param_labels=inverse_param_labels,
-                inverse_param_names=inverse_param_names,
+    def model(self, *, train: dict[str, Any] | KKTTrainConfig | None = None, projection: dict[str, Any] | ProjectionSettings | None = None) -> dict[str, Any]:
+        return self._run_training("surrogate", train=train, projection=projection)
+
+    def optimize(self, *, train: dict[str, Any] | KKTTrainConfig | None = None, projection: dict[str, Any] | ProjectionSettings | None = None) -> dict[str, Any]:
+        return self._run_training("optimize", train=train, projection=projection)
+
+    def estimate(self, *, train: dict[str, Any] | KKTTrainConfig | None = None, projection: dict[str, Any] | ProjectionSettings | None = None) -> dict[str, Any]:
+        return self._run_training("estimate", train=train, projection=projection)
+
+    def load(self, metadata_path: str | Path) -> "KKTHardNet":
+        metadata_file = _resolve_path(metadata_path)
+        with open(metadata_file, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        if payload.get("format") != "kkt-hardnet-metadata-v1":
+            raise ValueError(f"Unsupported metadata format in {metadata_file}.")
+
+        self.name = str(payload["model_name"])
+        self.parameter_names = list(payload["problem"]["parameters"])
+        self.variable_names = list(payload["problem"]["variables"])
+        self.inverse_parameter_names = list(payload["problem"].get("inverse_parameters", []))
+        self._inverse_initial_values = list(payload["problem"].get("inverse_initial_values", []))
+        self.dataset_spec = DatasetSpec(
+            parameters_path=str((metadata_file.parent / payload["artifacts"]["parameters"]).resolve()),
+            variables_path=None
+            if payload["artifacts"].get("variables") is None
+            else str((metadata_file.parent / payload["artifacts"]["variables"]).resolve()),
+        )
+        self._train_config = self._normalize_train_config(payload.get("training", {}))
+        self._projection_config = self._normalize_projection_config(payload.get("projection", {}))
+
+        task = str(payload["task"])
+        inverse_mode = bool(payload.get("inverse_mode", False))
+        fixed_inverse_values = np.asarray(payload.get("fixed_inverse_values", []), dtype=np.float64).reshape(-1)
+        problem_model, _ = build_model_from_string_problem(
+            payload["problem"],
+            dtype=_dtype(self._train_config["dtype"]),
+            train_inverse=inverse_mode,
+            inverse_values=fixed_inverse_values,
+        )
+        weights_path = (metadata_file.parent / payload["artifacts"]["weights"]).resolve()
+        params = load_model_weights(weights_path, payload["weights_manifest"])
+        projection_layer = make_projection_layer(problem_model, settings=self._projection_settings(self._projection_config))
+        self._inference_state = _InferenceState(
+            task=task,
+            model=problem_model,
+            params=params,
+            projection=projection_layer,
+            data_n_x=len(self.parameter_names),
+            output_dir=str(metadata_file.parent),
+        )
+        self._metadata_path = str(metadata_file)
+        return self
+
+    def predict(self, values) -> np.ndarray:
+        if self._inference_state is None:
+            raise RuntimeError("Please train or load the model before calling predict().")
+        data = np.asarray(values, dtype=np.float64)
+        squeeze = data.ndim == 1
+        if squeeze:
+            data = data.reshape(1, -1)
+        if data.ndim != 2:
+            raise ValueError("predict expects a 1D or 2D array-like input.")
+        if data.shape[1] != self._inference_state.data_n_x:
+            raise ValueError(
+                f"predict expected {self._inference_state.data_n_x} parameter values, got {data.shape[1]}."
             )
-        return _run_standard_case(self_or_args, root=root, data=data, train=train, proj=proj)
 
-    def _check_symbol(self, kind: str, name: str) -> None:
-        pools = {
-            "parameter": self.parameter_names,
-            "variable": self.variable_names,
-            "inverse_parameter": self.inverse_parameter_names,
-        }
-        if name not in pools[kind]:
-            raise AttributeError(f"Unknown {kind} '{name}'.")
+        batched_mlp_apply = make_batched_mlp_apply()
+        x_batch = jnp.asarray(data, dtype=_dtype(self._train_config["dtype"]))
+        params = self._inference_state.params
+        network = params["network"] if isinstance(params, dict) and "network" in params else params
+        y_hat = batched_mlp_apply(network, x_batch)
+        if isinstance(params, dict) and "inverse" in params:
+            theta = params["inverse"]
+            theta_batch = jnp.broadcast_to(theta, (x_batch.shape[0], theta.shape[0]))
+            x_aug = jnp.concatenate([x_batch, theta_batch], axis=1)
+        else:
+            x_aug = x_batch
+        y_proj = self._inference_state.projection.project(x_aug, y_hat)
+        out = np.asarray(y_proj, dtype=np.float64)
+        return out[0] if squeeze else out
 
     def sin(self, expr) -> Expression:
         expr = _as_expr(expr)
@@ -347,16 +399,139 @@ class ProblemBuilder:
         expr = _as_expr(expr)
         return Expression(lambda ctx, e=expr: jnp.abs(e.eval(ctx)), f"abs({expr.text})")
 
-    def build_model(
+    def _check_symbol(self, kind: str, name: str) -> None:
+        pools = {
+            "parameter": self.parameter_names,
+            "variable": self.variable_names,
+            "inverse_parameter": self.inverse_parameter_names,
+        }
+        if name not in pools[kind]:
+            raise AttributeError(f"Unknown {kind} '{name}'.")
+
+    def _normalize_train_config(self, config: dict[str, Any] | KKTTrainConfig | None) -> dict[str, Any]:
+        if config is None:
+            return {
+                "epochs": 2,
+                "batch_size": 8,
+                "learning_rate": 1e-3,
+                "train_frac": 0.8,
+                "hidden_size": 64,
+                "hidden_layers": 2,
+                "seed": 42,
+                "dtype": "float64",
+                "print_every": 1,
+                "drop_last": False,
+            }
+        if isinstance(config, KKTTrainConfig):
+            out = asdict(config)
+            out.pop("projection", None)
+            return out
+        out = dict(config)
+        out.setdefault("epochs", 2)
+        out.setdefault("batch_size", 8)
+        out.setdefault("learning_rate", 1e-3)
+        out.setdefault("train_frac", 0.8)
+        out.setdefault("hidden_size", 64)
+        out.setdefault("hidden_layers", 2)
+        out.setdefault("seed", 42)
+        out.setdefault("dtype", "float64")
+        out.setdefault("print_every", 1)
+        out.setdefault("drop_last", False)
+        return out
+
+    def _normalize_projection_config(self, config: dict[str, Any] | ProjectionSettings | None) -> dict[str, Any]:
+        if config is None:
+            return {}
+        if isinstance(config, ProjectionSettings):
+            return asdict(config)
+        return dict(config)
+
+    def _projection_config_from_train(self, config: dict[str, Any]) -> dict[str, Any]:
+        projection_keys = {
+            "fb_eps",
+            "gn_max_iters",
+            "gn_tol",
+            "gn_reg",
+            "newton_step_length",
+            "armijo_alpha",
+            "armijo_beta",
+            "max_backtrack_iter",
+            "armijo_max_steps",
+            "backward_reg",
+            "max_newton_iter",
+            "newton_tol",
+            "newton_reg_factor",
+        }
+        return {key: config[key] for key in projection_keys if key in config}
+
+    def _projection_settings(self, config: dict[str, Any]) -> ProjectionSettings:
+        defaults = ProjectionSettings()
+        backtrack_iters = int(config.get("max_backtrack_iter", config.get("armijo_max_steps", defaults.max_backtrack_iter)))
+        return ProjectionSettings(
+            fb_eps=float(config.get("fb_eps", defaults.fb_eps)),
+            gn_max_iters=int(config.get("gn_max_iters", config.get("max_newton_iter", defaults.gn_max_iters))),
+            gn_tol=float(config.get("gn_tol", config.get("newton_tol", defaults.gn_tol))),
+            gn_reg=float(config.get("gn_reg", config.get("newton_reg_factor", defaults.gn_reg))),
+            newton_step_length=float(config.get("newton_step_length", defaults.newton_step_length)),
+            armijo_alpha=float(config.get("armijo_alpha", defaults.armijo_alpha)),
+            armijo_beta=float(config.get("armijo_beta", defaults.armijo_beta)),
+            max_backtrack_iter=backtrack_iters,
+            armijo_max_steps=backtrack_iters,
+            backward_reg=float(config.get("backward_reg", defaults.backward_reg)),
+        )
+
+    def _config_dataclass(
+        self,
+        train: dict[str, Any] | KKTTrainConfig | None,
+        projection: dict[str, Any] | ProjectionSettings | None,
+    ) -> KKTTrainConfig:
+        train_cfg = self._normalize_train_config(self._train_config if train is None else train)
+        proj_cfg = {
+            **self._projection_config_from_train(train_cfg),
+            **self._normalize_projection_config(self._projection_config if projection is None else projection),
+        }
+        return KKTTrainConfig(
+            epochs=int(train_cfg["epochs"]),
+            batch_size=int(train_cfg["batch_size"]),
+            learning_rate=float(train_cfg["learning_rate"]),
+            train_frac=float(train_cfg["train_frac"]),
+            hidden_size=int(train_cfg["hidden_size"]),
+            hidden_layers=int(train_cfg["hidden_layers"]),
+            seed=int(train_cfg["seed"]),
+            dtype=str(train_cfg["dtype"]),
+            print_every=max(1, int(train_cfg["print_every"])),
+            drop_last=bool(train_cfg.get("drop_last", False)),
+            projection=self._projection_settings(proj_cfg),
+        )
+
+    def _initial_inverse_values(self) -> np.ndarray:
+        return np.asarray(self._inverse_initial_values, dtype=np.float64).reshape(-1)
+
+    def _problem_spec(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "parameters": list(self.parameter_names),
+            "variables": list(self.variable_names),
+            "inverse_parameters": list(self.inverse_parameter_names),
+            "inverse_initial_values": self._initial_inverse_values().tolist(),
+            "objective": None if self.objective is None else self.objective.text,
+            "constraints": [constraint.text for constraint in self.constraints.items],
+            "constraint_details": [
+                {"kind": constraint.kind, "text": constraint.text, "residual": constraint.residual.text}
+                for constraint in self.constraints.items
+            ],
+        }
+
+    def _build_model(
         self,
         *,
-        dtype=jnp.float64,
-        train_inverse: bool = False,
+        dtype,
+        train_inverse: bool,
         inverse_values=None,
-        allow_missing_objective: bool = False,
+        allow_missing_objective: bool,
     ):
         if self.objective is None and not allow_missing_objective:
-            raise ValueError("Set builder.objective before build_model().")
+            raise ValueError("Set model.objective before training an optimization model.")
         if not self.parameter_names:
             raise ValueError("Add at least one parameter.")
         if not self.variable_names:
@@ -364,9 +539,9 @@ class ProblemBuilder:
 
         inverse_values_j = jnp.asarray([] if inverse_values is None else inverse_values, dtype=dtype).reshape(-1)
         if not train_inverse and self.inverse_parameter_names and inverse_values_j.size != len(self.inverse_parameter_names):
-            raise ValueError("Forward mode requires one fixed value for each inverse parameter.")
-        if train_inverse and inverse_values_j.size not in {0, len(self.inverse_parameter_names)}:
-            raise ValueError("inverse_values must be empty or match the inverse parameter count.")
+            raise ValueError("Fixed inverse parameters must match the inverse parameter count.")
+        if train_inverse and inverse_values_j.size != len(self.inverse_parameter_names):
+            raise ValueError("estimate() requires an init_value for every inverse parameter.")
 
         n_x = len(self.parameter_names) + (len(self.inverse_parameter_names) if train_inverse else 0)
         n_y = len(self.variable_names)
@@ -417,37 +592,160 @@ class ProblemBuilder:
 
             builder = builder.add_nonlinear_inequality(ineq_block, name="symbolic_ineq_block")
 
-        lower, upper = self.bounds.arrays(n_y, dtype=dtype, default_radius=self.y_bound)
-        zeros = jnp.zeros((n_y, n_x), dtype=dtype)
-        model = (
-            builder
-            .set_affine_lower_bound(var_name="y", param_name="x", M=zeros, c=lower)
-            .set_affine_upper_bound(var_name="y", param_name="x", M=zeros, c=upper)
-            .build(example_params={"x": jnp.zeros((n_x,), dtype=dtype)}, jit_compile=True)
-        )
-        return model, self.metadata(train_inverse=train_inverse, inverse_values=inverse_values_j)
+        model = builder.build(example_params={"x": jnp.zeros((n_x,), dtype=dtype)}, jit_compile=True)
+        return model
 
-    def metadata(self, *, train_inverse: bool, inverse_values) -> dict:
+    def _read_dataset(self, *, variables_required: bool) -> tuple[np.ndarray, np.ndarray | None, dict[str, Any]]:
+        if self.dataset_spec is None:
+            raise ValueError("Call model.dataset(parameters=..., variables=...) before training.")
+
+        parameters_path = _resolve_path(self.dataset_spec.parameters_path)
+        if not parameters_path.exists():
+            raise FileNotFoundError(f"Parameters CSV not found: {parameters_path}")
+        X = self._read_csv_columns(parameters_path, self.parameter_names)
+
+        Y = None
+        variables_path: Path | None = None
+        if self.dataset_spec.variables_path is not None:
+            variables_path = _resolve_path(self.dataset_spec.variables_path)
+            if not variables_path.exists():
+                raise FileNotFoundError(f"Variables CSV not found: {variables_path}")
+            Y = self._read_csv_columns(variables_path, self.variable_names)
+            if Y.shape[0] != X.shape[0]:
+                raise ValueError("parameters.csv and variables.csv must have the same number of rows.")
+        elif variables_required:
+            raise ValueError("variables.csv is required for surrogate modeling and parameter estimation.")
+
+        metadata = {
+            "dataset": {
+                "parameters": str(parameters_path),
+                "variables": None if variables_path is None else str(variables_path),
+                "num_samples": int(X.shape[0]),
+            }
+        }
+        return X, Y, metadata
+
+    def _read_csv_columns(self, path: Path, expected_columns: list[str]) -> np.ndarray:
+        if not expected_columns:
+            raise ValueError("Expected columns must be defined before loading data.")
+        with open(path, "r", encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            headers = list(reader.fieldnames or [])
+            missing = [name for name in expected_columns if name not in headers]
+            if missing:
+                raise ValueError(f"{path} is missing columns: {missing}")
+            rows = []
+            for row_idx, row in enumerate(reader, start=2):
+                try:
+                    rows.append([float(row[name]) for name in expected_columns])
+                except ValueError as exc:
+                    raise ValueError(f"Non-numeric value in {path} at line {row_idx}.") from exc
+        if not rows:
+            raise ValueError(f"{path} has no data rows.")
+        return np.asarray(rows, dtype=np.float64)
+
+    def _copy_dataset_artifacts(self, run_dir: Path, X: np.ndarray, Y: np.ndarray | None) -> dict[str, str | None]:
+        parameters_file = run_dir / "parameters.csv"
+        variables_file = None if Y is None else run_dir / "variables.csv"
+        self._write_matrix_csv(parameters_file, X, self.parameter_names)
+        if variables_file is not None:
+            self._write_matrix_csv(variables_file, Y, self.variable_names)
         return {
-            "builder": "ProblemBuilder",
-            "parameter_names": list(self.parameter_names),
-            "variable_names": list(self.variable_names),
-            "inverse_parameter_names": list(self.inverse_parameter_names),
-            "train_inverse": bool(train_inverse),
-            "fixed_inverse_values": np.asarray(inverse_values, dtype=np.float64).reshape(-1).tolist(),
-            "objective": None if self.objective is None else self.objective.text,
-            "constraints": [
-                {"kind": constraint.kind, "text": constraint.text, "residual": constraint.residual.text}
-                for constraint in self.constraints.items
-            ],
-            "bounds": {
-                "lower": None if self.bounds.lower is None else np.asarray(self.bounds.lower).reshape(-1).tolist(),
-                "upper": None if self.bounds.upper is None else np.asarray(self.bounds.upper).reshape(-1).tolist(),
-                "default_y_bound": self.y_bound,
+            "parameters": parameters_file.name,
+            "variables": None if variables_file is None else variables_file.name,
+        }
+
+    def _write_matrix_csv(self, path: Path, data: np.ndarray, headers: list[str]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(list(headers))
+            writer.writerows(np.asarray(data, dtype=np.float64).tolist())
+
+    def _run_training(
+        self,
+        task: str,
+        *,
+        train: dict[str, Any] | KKTTrainConfig | None,
+        projection: dict[str, Any] | ProjectionSettings | None,
+    ) -> dict[str, Any]:
+        train_cfg = self._config_dataclass(train, projection)
+        dtype = _dtype(train_cfg.dtype)
+        variables_required = task in {"surrogate", "estimate"}
+        X, Y, dataset_meta = self._read_dataset(variables_required=variables_required)
+        inverse_mode = task == "estimate"
+        inverse_values = self._initial_inverse_values()
+        fixed_inverse_values = inverse_values if (self.inverse_parameter_names and not inverse_mode) else np.zeros((0,), dtype=np.float64)
+        model = self._build_model(
+            dtype=dtype,
+            train_inverse=inverse_mode,
+            inverse_values=inverse_values if self.inverse_parameter_names else np.zeros((0,), dtype=np.float64),
+            allow_missing_objective=task != "optimize",
+        )
+
+        run_dir = Path.cwd() / f"{self.name}_{_timestamp()}"
+        run_dir.mkdir(parents=True, exist_ok=False)
+        dataset_artifacts = self._copy_dataset_artifacts(run_dir, X, Y)
+        result = train_kkt_hardnet(
+            model=model,
+            X=X,
+            Y=Y,
+            cfg=train_cfg,
+            output_dir=run_dir,
+            metadata={
+                "task": task,
+                "problem": self._problem_spec(),
+                **dataset_meta,
             },
-            "dataset": None if self.dataset_spec is None else {
-                "path": self.dataset_spec.path,
-                "parameter_columns": list(self.dataset_spec.parameter_columns),
-                "variable_columns": list(self.dataset_spec.variable_columns),
+            inverse_param_init=inverse_values if inverse_mode else None,
+            inverse_param_labels=None,
+            inverse_param_names=list(self.inverse_parameter_names) if inverse_mode else None,
+            task=task,
+        )
+
+        metadata_payload = {
+            "format": "kkt-hardnet-metadata-v1",
+            "model_name": self.name,
+            "task": task,
+            "created_at": _timestamp(),
+            "problem": self._problem_spec(),
+            "training": self._normalize_train_config(train_cfg),
+            "projection": self._normalize_projection_config(train_cfg.projection),
+            "inverse_mode": inverse_mode,
+            "fixed_inverse_values": fixed_inverse_values.tolist(),
+            "weights_manifest": result.get("model_weights", result.get("model_weights_manifest")),
+            "artifacts": {
+                "parameters": dataset_artifacts["parameters"],
+                "variables": dataset_artifacts["variables"],
+                "weights": "model_weights.npz",
+                "summary": "summary.json",
+                "history": "history.csv",
+                "predictions": "predictions.csv",
             },
         }
+        if metadata_payload["weights_manifest"] is None:
+            summary_file = run_dir / "summary.json"
+            if summary_file.exists():
+                with open(summary_file, "r", encoding="utf-8") as fh:
+                    summary_payload = json.load(fh)
+                metadata_payload["weights_manifest"] = summary_payload.get("model_weights")
+        metadata_file = run_dir / "metadata.json"
+        with open(metadata_file, "w", encoding="utf-8") as fh:
+            json.dump(_json_safe(metadata_payload), fh, indent=2, sort_keys=True)
+
+        params = result["params"]
+        projection_layer = make_projection_layer(model, settings=train_cfg.projection)
+        self._inference_state = _InferenceState(
+            task=task,
+            model=model,
+            params=params,
+            projection=projection_layer,
+            data_n_x=len(self.parameter_names),
+            output_dir=str(run_dir),
+        )
+        self._metadata_path = str(metadata_file)
+        result["metadata_path"] = str(metadata_file)
+        return result
+
+
+ProblemBuilder = KKTHardNet

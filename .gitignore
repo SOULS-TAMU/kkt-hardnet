@@ -4,10 +4,17 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pypirc
+.codex
+
+# Local user files
+main.py
+scripts/
 
 # Local run artifacts
-case/**/runs/
 notebooks/_runs/
+notebooks/data/
+*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]/
 
 # Packaging artifacts, while preserving the requested build directory placeholder
 kkthn/build/*

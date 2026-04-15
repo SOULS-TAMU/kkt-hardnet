@@ -17,8 +17,10 @@ class ProjectionSettings:
     gn_max_iters: int = 25
     gn_tol: float = 1e-8
     gn_reg: float = 1e-6
+    newton_step_length: float = 1.0
     armijo_alpha: float = 1e-4
     armijo_beta: float = 0.5
+    max_backtrack_iter: int = 15
     armijo_max_steps: int = 15
     backward_reg: float = 1e-8
 
@@ -146,12 +148,24 @@ def make_projection_layer(
         rhs = -(J.T @ r)
         return jnp.linalg.solve(JTJ, rhs), r
 
+    defaults = ProjectionSettings()
+    if cfg.max_backtrack_iter != defaults.max_backtrack_iter:
+        backtrack_steps = int(cfg.max_backtrack_iter)
+    elif cfg.armijo_max_steps != defaults.armijo_max_steps:
+        backtrack_steps = int(cfg.armijo_max_steps)
+    else:
+        backtrack_steps = int(defaults.max_backtrack_iter)
+
     @jax.jit
     def armijo_line_search(z, d, x, y_hat):
         phi0 = merit(z, x, y_hat)
         r0 = kkt_residual(z, x, y_hat)
         J0 = kkt_jac_z(z, x, y_hat)
         grad_phi_dot_d = jnp.dot(J0.T @ r0, d)
+        init_step = jnp.asarray(cfg.newton_step_length, dtype=z.dtype)
+
+        if backtrack_steps <= 0:
+            return init_step
 
         def body_fun(state, _):
             step, accepted = state
@@ -162,9 +176,9 @@ def make_projection_layer(
 
         (step, _), _ = lax.scan(
             body_fun,
-            init=(jnp.asarray(1.0, dtype=z.dtype), jnp.asarray(False)),
+            init=(init_step, jnp.asarray(False)),
             xs=None,
-            length=cfg.armijo_max_steps,
+            length=backtrack_steps,
         )
         return step
 

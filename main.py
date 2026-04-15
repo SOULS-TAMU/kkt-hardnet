@@ -1,47 +1,49 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-KKTHN_SRC = ROOT / "kkthn" / "src"
-
-for candidate in (KKTHN_SRC, ROOT):
-    if str(candidate) not in sys.path:
-        sys.path.insert(0, str(candidate))
-
-from kkthn.builder import ProblemBuilder  # noqa: E402
+from kkthn import KKTHardNet
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="KKT-HardNet runner.")
-    parser.add_argument("--type", required=True, choices=("qp", "qcqp", "nlp", "nonconvex", "nonconvx", "general"))
-    parser.add_argument("--action", default="run", choices=("run", "data"))
-    parser.add_argument("--mode", default="forward", choices=("forward", "inverse"), help="main.py supports forward mode only.")
-    parser.add_argument("--p", type=int, default=None, help="Parameter dimension override.")
-    parser.add_argument("--n", type=int, default=None, help="Decision dimension override.")
-    parser.add_argument("--me", type=int, default=None, help="Equality count override.")
-    parser.add_argument("--mi", type=int, default=None, help="Inequality count override.")
-    parser.add_argument("--samples", type=int, default=None, help="Number of labeled data points.")
-    parser.add_argument("--epochs", type=int, default=None)
-    parser.add_argument("--batch_size", type=int, default=None)
-    parser.add_argument("--learning_rate", type=float, default=None)
-    parser.add_argument("--solver", default=None)
-    parser.add_argument("--train_frac", type=float, default=None)
-    parser.add_argument("--hidden_size", type=int, default=None)
-    parser.add_argument("--hidden_layers", type=int, default=None)
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--noise_scale", type=float, default=None, help="Gaussian label-noise scale applied after clean labels are generated.")
-    parser.add_argument("--output_dir", default=None)
-    return parser.parse_args(argv)
+TRAIN = {
+    "epochs": 1200,
+    "batch_size": 32,
+    "learning_rate": 1e-3,
+    "train_frac": 0.8,
+    "hidden_size": 64,
+    "hidden_layers": 2,
+    "seed": 42,
+    "dtype": "float64",
+    "print_every": 1,
+    "newton_step_length": 0.5,
+    "newton_tol": 1e-6,
+    "newton_reg_factor": 1e-3,
+    "max_newton_iter": 30,
+    "max_backtrack_iter": 10,
+}
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = _parse_args(argv)
-    return ProblemBuilder.run(args, root=ROOT)
+def build_model(param_path: str | Path, var_path: str | Path | None = None) -> KKTHardNet:
+    model = KKTHardNet(name="kkt_hardnet", train=TRAIN)
+    x = model.add_parameter(["x1", "x2"])
+    theta = model.add_inverse_parameter(["a0", "a1"], init_value=[10.0, -10.0])
+    y = model.add_variable(["y1", "y2", "y3"])
+
+    model.objective = 0.5 * (y.y1**2 + y.y2**2 + y.y3**2)
+    model.constraints.add(
+        theta.a0 * y.y1 + y.y2 - x.x1 == 0,
+        y.y2 - theta.a1 * y.y3 - x.x2 == 0,
+        y.y1**2 + y.y3**2 <= 2.0,
+        y.y1 >= 0,
+    )
+    model.dataset(parameters=param_path, variables=var_path)
+    return model
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parameters = Path("parameters.csv")
+    variables = Path("variables.csv")
+
+    model = build_model(parameters, variables)
+    result = model.model()
+    print(f"Metadata saved to: {result['metadata_path']}")

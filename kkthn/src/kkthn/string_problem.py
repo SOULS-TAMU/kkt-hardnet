@@ -45,9 +45,12 @@ def make_scalar_expr_fn(
     parameter_names: list[str],
     variable_names: list[str],
     inverse_parameter_names: list[str] | None = None,
+    inverse_values=None,
+    train_inverse: bool = False,
 ) -> Callable:
     env0 = _safe_env()
     inv_names = list(inverse_parameter_names or [])
+    inv_values = jnp.asarray([] if inverse_values is None else inverse_values, dtype=jnp.float64).reshape(-1)
     forward_dim = len(parameter_names)
 
     def f(y, x):
@@ -59,7 +62,7 @@ def make_scalar_expr_fn(
         for idx, name in enumerate(parameter_names):
             env[name] = x_vec[idx]
         for idx, name in enumerate(inv_names):
-            env[name] = x_vec[forward_dim + idx]
+            env[name] = x_vec[forward_dim + idx] if train_inverse else inv_values[idx]
         return eval(expr, {"__builtins__": {}}, env)
 
     return f
@@ -78,13 +81,15 @@ def build_model_from_string_problem(
     *,
     dtype=jnp.float64,
     inverse_parameter_names: list[str] | None = None,
+    inverse_values=None,
+    train_inverse: bool = False,
 ):
     parameter_names = list(problem["parameters"])
     variable_names = list(problem["variables"])
-    inv_names = list(inverse_parameter_names or [])
+    inv_names = list(problem.get("inverse_parameters", inverse_parameter_names or []))
     constraints = list(problem.get("constraints", []))
     objective_expr = _objective_expr(problem)
-    total_parameter_dim = len(parameter_names) + len(inv_names)
+    total_parameter_dim = len(parameter_names) + (len(inv_names) if train_inverse else 0)
 
     eq_exprs: list[str] = []
     ineq_exprs: list[str] = []
@@ -95,9 +100,36 @@ def build_model_from_string_problem(
         else:
             ineq_exprs.append(expr)
 
-    eq_fns = [make_scalar_expr_fn(expr, parameter_names, variable_names, inv_names) for expr in eq_exprs]
-    ineq_fns = [make_scalar_expr_fn(expr, parameter_names, variable_names, inv_names) for expr in ineq_exprs]
-    obj_fn = make_scalar_expr_fn(objective_expr, parameter_names, variable_names, inv_names)
+    eq_fns = [
+        make_scalar_expr_fn(
+            expr,
+            parameter_names,
+            variable_names,
+            inv_names,
+            inverse_values=inverse_values,
+            train_inverse=train_inverse,
+        )
+        for expr in eq_exprs
+    ]
+    ineq_fns = [
+        make_scalar_expr_fn(
+            expr,
+            parameter_names,
+            variable_names,
+            inv_names,
+            inverse_values=inverse_values,
+            train_inverse=train_inverse,
+        )
+        for expr in ineq_exprs
+    ]
+    obj_fn = make_scalar_expr_fn(
+        objective_expr,
+        parameter_names,
+        variable_names,
+        inv_names,
+        inverse_values=inverse_values,
+        train_inverse=train_inverse,
+    )
 
     def objective(params, vars_dict):
         return obj_fn(vars_dict["y"], params["x"])
@@ -127,20 +159,6 @@ def build_model_from_string_problem(
 
         builder = builder.add_nonlinear_inequality(ineq_block, name="string_ineq_block")
 
-    y_bound = float(problem.get("y_bound", 10.0))
-    zeros = jnp.zeros((len(variable_names), total_parameter_dim), dtype=dtype)
-    builder = builder.set_affine_lower_bound(
-        var_name="y",
-        param_name="x",
-        M=zeros,
-        c=-y_bound * jnp.ones((len(variable_names),), dtype=dtype),
-    )
-    builder = builder.set_affine_upper_bound(
-        var_name="y",
-        param_name="x",
-        M=zeros,
-        c=y_bound * jnp.ones((len(variable_names),), dtype=dtype),
-    )
     model = builder.build(example_params={"x": jnp.zeros((total_parameter_dim,), dtype=dtype)}, jit_compile=True)
     return model, {
         "eq_exprs": eq_exprs,
@@ -149,4 +167,5 @@ def build_model_from_string_problem(
         "parameter_names": parameter_names,
         "inverse_parameter_names": inv_names,
         "total_parameter_dim": total_parameter_dim,
+        "train_inverse": bool(train_inverse),
     }

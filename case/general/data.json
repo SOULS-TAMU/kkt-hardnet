@@ -1,9 +1,0 @@
-{
-  "type": "general",
-  "num_samples": 12,
-  "seed": 42,
-  "noise_scale": 0.0,
-  "force_regenerate": false,
-  "x_L": [-1.0, -1.0, -1.0, -1.0, -1.0],
-  "x_U": [1.0, 1.0, 1.0, 1.0, 1.0]
-}

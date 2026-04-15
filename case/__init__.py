@@ -1,1 +1,0 @@
-"""KKTHardNet case configurations."""

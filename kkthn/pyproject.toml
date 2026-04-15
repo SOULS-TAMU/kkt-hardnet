@@ -3,17 +3,34 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kkthn"
-version = "0.1.8"
-description = "KKT-HardNet: JAX surrogate regression with a hard KKT projection layer"
+name = "kkt-hardnet"
+version = "1.0.1"
+description = "KKT-HardNet: Physics-constrained neural networks with hard nonlinear equality and inequality constraint satisfaction guarantees"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [
+authors = [{name = "Rahul Golder", email = "rahulgolder8420@tamu.edu"},
     {name = "Bimol Nath Roy", email = "bimolnathroy@tamu.edu"},
-    {name = "Rahul Golder", email = "rahulgolder8420@tamu.edu"}
+    {name = "Ashfaq Iftakher", email = "iftakher@tamu.edu"},
+    {name = "MM Faruque Hasan", email = "hasan@tamu.edu"}
 ]
-dynamic = ["dependencies"]
+dependencies = [
+    "jax==0.4.30",
+    "jaxlib==0.4.30",
+    "flax==0.8.5",
+    "optax==0.2.4",
+    "chex==0.1.90",
+    "numpy==1.26.4",
+    "scipy==1.13.1",
+    "pandas==2.2.3",
+    "matplotlib==3.9.4",
+]
+
+[project.optional-dependencies]
+cuda12 = [
+    "jax[cuda12]==0.4.30",
+    "jaxlib==0.4.30",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

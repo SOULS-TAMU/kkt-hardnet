@@ -131,7 +131,7 @@ def _write_predictions_csv(
     path: Path,
     *,
     X: np.ndarray,
-    Y: np.ndarray,
+    Y: np.ndarray | None,
     Y_hat: np.ndarray,
     Y_proj: np.ndarray,
     train_idx: np.ndarray,
@@ -141,13 +141,11 @@ def _write_predictions_csv(
 ) -> None:
     split_by_index = {int(idx): "train" for idx in np.asarray(train_idx, dtype=int).reshape(-1)}
     split_by_index.update({int(idx): "validation" for idx in np.asarray(val_idx, dtype=int).reshape(-1)})
-    fieldnames = (
-        ["sample_index", "split"]
-        + [f"param_{name}" for name in parameter_names]
-        + [f"true_{name}" for name in variable_names]
-        + [f"raw_pred_{name}" for name in variable_names]
-        + [f"pred_{name}" for name in variable_names]
-    )
+    has_labels = Y is not None
+    fieldnames = ["sample_index", "split"] + [f"param_{name}" for name in parameter_names]
+    if has_labels:
+        fieldnames += [f"true_{name}" for name in variable_names]
+    fieldnames += [f"raw_pred_{name}" for name in variable_names] + [f"pred_{name}" for name in variable_names]
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -159,8 +157,10 @@ def _write_predictions_csv(
             }
             for name, value in zip(parameter_names, X[sample_idx]):
                 row[f"param_{name}"] = float(value)
-            for name, value in zip(variable_names, Y[sample_idx]):
-                row[f"true_{name}"] = float(value)
+            if has_labels:
+                assert Y is not None
+                for name, value in zip(variable_names, Y[sample_idx]):
+                    row[f"true_{name}"] = float(value)
             for name, value in zip(variable_names, Y_hat[sample_idx]):
                 row[f"raw_pred_{name}"] = float(value)
             for name, value in zip(variable_names, Y_proj[sample_idx]):
@@ -202,11 +202,30 @@ def _save_model_weights(path: Path, params: Any, *, inverse_mode: bool) -> dict[
     return manifest
 
 
+def load_model_weights(path: Path, manifest: dict[str, Any]) -> Any:
+    with np.load(path, allow_pickle=False) as arrays:
+        network = []
+        for layer in manifest["layers"]:
+            network.append(
+                {
+                    "W": jnp.asarray(arrays[layer["weight_key"]]),
+                    "b": jnp.asarray(arrays[layer["bias_key"]]),
+                }
+            )
+        if bool(manifest.get("inverse_mode", False)):
+            inverse_key = str(manifest["inverse_parameter_key"])
+            return {
+                "network": network,
+                "inverse": jnp.asarray(arrays[inverse_key]),
+            }
+        return network
+
+
 def train_kkt_hardnet(
     *,
     model,
     X: np.ndarray,
-    Y: np.ndarray,
+    Y: np.ndarray | None,
     cfg: KKTTrainConfig,
     param_name: str = "x",
     output_dir: Path | None = None,
@@ -214,14 +233,16 @@ def train_kkt_hardnet(
     inverse_param_init: np.ndarray | None = None,
     inverse_param_labels: np.ndarray | None = None,
     inverse_param_names: list[str] | None = None,
+    task: str = "surrogate",
 ) -> dict[str, Any]:
     train_dtype = _dtype(cfg.dtype)
     X_np = np.asarray(X, dtype=np.float64)
-    Y_np = np.asarray(Y, dtype=np.float64)
-    if X_np.ndim != 2 or Y_np.ndim != 2:
-        raise ValueError("X and Y must be 2D arrays.")
-    if X_np.shape[0] != Y_np.shape[0]:
-        raise ValueError("X and Y must have the same number of rows.")
+    task_name = str(task).strip().lower()
+    if task_name not in {"surrogate", "estimate", "optimize"}:
+        raise ValueError("task must be one of surrogate, estimate, or optimize.")
+    supervised = task_name in {"surrogate", "estimate"}
+    if X_np.ndim != 2:
+        raise ValueError("X must be a 2D array.")
 
     inverse_mode = inverse_param_init is not None
     inverse_init_np = (
@@ -242,6 +263,20 @@ def train_kkt_hardnet(
 
     projection = make_projection_layer(model, param_name=param_name, settings=cfg.projection)
     dims = projection.dims
+    Y_true_np = None if Y is None else np.asarray(Y, dtype=np.float64)
+    if supervised:
+        if Y_true_np is None:
+            raise ValueError(f"{task_name} training requires Y labels.")
+        if Y_true_np.ndim != 2:
+            raise ValueError("Y must be a 2D array.")
+        if X_np.shape[0] != Y_true_np.shape[0]:
+            raise ValueError("X and Y must have the same number of rows.")
+        if Y_true_np.shape[1] != dims["n_y"]:
+            raise ValueError(f"Y has {Y_true_np.shape[1]} columns, expected {dims['n_y']}.")
+        Y_np = Y_true_np
+    else:
+        Y_np = np.zeros((int(X_np.shape[0]), int(dims["n_y"])), dtype=np.float64)
+
     data_n_x = int(X_np.shape[1])
     if inverse_mode:
         expected_total = data_n_x + int(inverse_init_np.size)
@@ -252,9 +287,6 @@ def train_kkt_hardnet(
             )
     elif data_n_x != dims["n_x"]:
         raise ValueError(f"X has {data_n_x} columns, expected {dims['n_x']}.")
-    if Y_np.shape[1] != dims["n_y"]:
-        raise ValueError(f"Y has {Y_np.shape[1]} columns, expected {dims['n_y']}.")
-
     Xtr, Ytr, Xva, Yva, train_idx, val_idx = _split_dataset(X_np, Y_np, train_frac=cfg.train_frac, seed=cfg.seed)
     Xall_j = jnp.asarray(X_np, dtype=train_dtype)
     Xtr_j = jnp.asarray(Xtr, dtype=train_dtype)
@@ -293,6 +325,11 @@ def train_kkt_hardnet(
         return y_hat, y_proj
 
     @jax.jit
+    def objective_batch(params_in, x_batch, y_batch):
+        x_aug = augmented_x(params_in, x_batch)
+        return jax.vmap(lambda xx, yy: model.objective_value({param_name: xx}, yy))(x_aug, y_batch)
+
+    @jax.jit
     def constraint_violation_batch(params_in, x_batch, y_batch):
         x_aug = augmented_x(params_in, x_batch)
         ce = jax.vmap(projection.eq_constraints, in_axes=(0, 0))(y_batch, x_aug)
@@ -303,8 +340,11 @@ def train_kkt_hardnet(
 
     @jax.jit
     def loss_fn(params_in, x_batch, y_batch):
-        _y_hat, y_proj = model_forward(params_in, x_batch)
-        return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
+        y_hat, y_proj = model_forward(params_in, x_batch)
+        if supervised:
+            return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
+        del y_hat, y_batch
+        return jnp.mean(objective_batch(params_in, x_batch, y_proj))
 
     @jax.jit
     def train_step(params_in, opt_state_in, x_batch, y_batch):
@@ -316,10 +356,15 @@ def train_kkt_hardnet(
     @jax.jit
     def eval_metrics(params_in, x_batch, y_batch):
         y_hat, y_proj = model_forward(params_in, x_batch)
-        loss = jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
-        raw_mse = jnp.mean(jnp.sum((y_hat - y_batch) ** 2, axis=1))
+        if supervised:
+            loss = jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
+            raw_metric = jnp.mean(jnp.sum((y_hat - y_batch) ** 2, axis=1))
+        else:
+            del y_batch
+            loss = jnp.mean(objective_batch(params_in, x_batch, y_proj))
+            raw_metric = jnp.mean(objective_batch(params_in, x_batch, y_hat))
         eq_l2, ineq_l2 = constraint_violation_batch(params_in, x_batch, y_proj)
-        return loss, raw_mse, eq_l2, ineq_l2, y_hat, y_proj
+        return loss, raw_metric, eq_l2, ineq_l2, y_hat, y_proj
 
     @jax.jit
     def backbone_forward_fn(params_in, x_batch):
@@ -333,7 +378,10 @@ def train_kkt_hardnet(
     def forward_loss_fn(params_in, x_batch, y_batch):
         y_hat = backbone_forward_fn(params_in, x_batch)
         y_proj = projection_only_fn(params_in, x_batch, y_hat)
-        return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
+        if supervised:
+            return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
+        del y_batch
+        return jnp.mean(objective_batch(params_in, x_batch, y_proj))
 
     grad_only_fn = jax.jit(jax.grad(forward_loss_fn))
 
@@ -344,6 +392,7 @@ def train_kkt_hardnet(
 
     print("KKT-HardNet")
     print(f"  dims: n_x={dims['n_x']} n_y={dims['n_y']} n_eq={dims['n_eq']} n_ineq={dims['n_ineq']}")
+    print(f"  task: {task_name}")
     if inverse_mode:
         print(f"  mode: inverse data_n_x={data_n_x} inverse_n={inverse_init_np.size}")
         print(f"  inverse init: {dict(zip(inverse_names, inverse_init_np.tolist()))}")
@@ -418,11 +467,11 @@ def train_kkt_hardnet(
         row = {
             "epoch": epoch,
             "train_loss": float(tr_loss),
-            "train_raw_mse": float(tr_raw),
+            "train_raw_metric": float(tr_raw),
             "train_eq_l2": float(tr_eq),
             "train_ineq_l2": float(tr_ineq),
             "val_loss": float(va_loss),
-            "val_raw_mse": float(va_raw),
+            "val_raw_metric": float(va_raw),
             "val_eq_l2": float(va_eq),
             "val_ineq_l2": float(va_ineq),
             "mean_batch_loss": float(np.mean(batch_losses)) if batch_losses else float("nan"),
@@ -441,7 +490,7 @@ def train_kkt_hardnet(
             print(
                 f"epoch {epoch:04d} | "
                 f"train={row['train_loss']:.6e} val={row['val_loss']:.6e} "
-                f"raw_val={row['val_raw_mse']:.6e} "
+                f"raw_val={row['val_raw_metric']:.6e} "
                 f"eq={row['val_eq_l2']:.3e} ineq={row['val_ineq_l2']:.3e} | "
                 f"train_batch={row['train_time_per_batch_sec']:.4f}s "
                 f"val_batch={row['validation_time_per_batch_sec']:.4f}s"
@@ -539,6 +588,7 @@ def train_kkt_hardnet(
     parameter_names, variable_names = _named_columns(metadata, data_n_x=data_n_x, n_y=dims["n_y"])
     final = history[-1]
     out = {
+        "task": task_name,
         "dims": dims,
         "config": asdict(cfg),
         "metadata": metadata or {},
@@ -555,7 +605,7 @@ def train_kkt_hardnet(
         },
         "predictions": {
             "X": X_np,
-            "Y": Y_np,
+            "Y": Y_true_np,
             "Y_hat": np.asarray(all_hat),
             "Y_proj": np.asarray(all_proj),
             "train_indices": train_idx,
@@ -563,7 +613,7 @@ def train_kkt_hardnet(
         },
         "val_predictions": {
             "X": np.asarray(Xva_j),
-            "Y": np.asarray(Yva_j),
+            "Y": None if Y_true_np is None else np.asarray(Yva_j),
             "Y_hat": np.asarray(va_hat),
             "Y_proj": np.asarray(va_proj),
             "sample_indices": val_idx,
@@ -625,6 +675,7 @@ def train_kkt_hardnet(
             with open(inverse_file, "w", encoding="utf-8") as fh:
                 json.dump(_json_safe(inverse_summary), fh, indent=2, sort_keys=True)
         out["output_dir"] = str(output)
+        out["model_weights_manifest"] = weights_manifest
         print(f"Saved run artifacts: {output}")
 
     print(f"Training time: {train_time:.3f}s")
