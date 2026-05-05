@@ -14,14 +14,14 @@ jax.config.update("jax_enable_x64", True)
 @dataclass(frozen=True)
 class ProjectionSettings:
     fb_eps: float = 1e-8
-    gn_max_iters: int = 25
-    gn_tol: float = 1e-8
-    gn_reg: float = 1e-6
-    newton_step_length: float = 1.0
+    gn_max_iters: int = 30
+    gn_tol: float = 1e-6
+    gn_reg: float = 1e-3
+    newton_step_length: float = 0.5
     armijo_alpha: float = 1e-4
     armijo_beta: float = 0.5
-    max_backtrack_iter: int = 15
-    armijo_max_steps: int = 15
+    max_backtrack_iter: int = 10
+    armijo_max_steps: int = 10
     backward_reg: float = 1e-8
 
 
@@ -110,7 +110,7 @@ def make_projection_layer(
     def init_z(x, y_hat):
         y = y_hat
         lam = jnp.zeros((ne,), dtype=y_hat.dtype)
-        mu = jnp.ones((ni,), dtype=y_hat.dtype) * 1e-2
+        mu = jnp.zeros((ni,), dtype=y_hat.dtype)
         gi0 = ineq_fun(y, x)
         s = jnp.maximum(-gi0, 1e-3) if ni > 0 else jnp.zeros((0,), dtype=y_hat.dtype)
         return pack_z(y, lam, mu, s)

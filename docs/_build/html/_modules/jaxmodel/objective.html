@@ -1,0 +1,196 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jaxmodel.objective &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jaxmodel.objective</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jaxmodel.objective</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">VariableSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParamsDict</span><span class="p">,</span> <span class="n">VarsDict</span><span class="p">,</span> <span class="n">ScalarModelFun</span><span class="p">,</span> <span class="n">FlatScalarFun</span>
+
+
+<div class="viewcode-block" id="QuadraticObjective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.QuadraticObjective">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">QuadraticObjective</span><span class="p">:</span>
+    <span class="n">Q</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">constant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Q</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Q must be square, got shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;c shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> must match Q dimension </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="QuadraticObjective.value_from_flat">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.QuadraticObjective.value_from_flat">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">value_from_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y_flat</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span> <span class="o">@</span> <span class="n">y_flat</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">@</span> <span class="n">y_flat</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">constant</span></div>
+
+
+<div class="viewcode-block" id="QuadraticObjective.grad_from_flat">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.QuadraticObjective.grad_from_flat">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">grad_from_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span> <span class="o">@</span> <span class="n">y_flat</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span></div>
+
+
+<div class="viewcode-block" id="QuadraticObjective.hess_from_flat">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.QuadraticObjective.hess_from_flat">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hess_from_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span></div>
+
+
+<div class="viewcode-block" id="QuadraticObjective.diag_hess_from_flat">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.QuadraticObjective.diag_hess_from_flat">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diag_hess_from_flat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="wrap_scalar_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.wrap_scalar_objective">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">wrap_scalar_objective</span><span class="p">(</span>
+    <span class="n">var_spec</span><span class="p">:</span> <span class="n">VariableSpec</span><span class="p">,</span>
+    <span class="n">fun</span><span class="p">:</span> <span class="n">ScalarModelFun</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FlatScalarFun</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wrapped</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">ParamsDict</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">vars_dict</span> <span class="o">=</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="n">y_flat</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fun</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vars_dict</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">wrapped</span></div>
+
+
+
+<div class="viewcode-block" id="resolve_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/objective.html#jaxmodel.resolve_objective">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">resolve_objective</span><span class="p">(</span><span class="n">var_spec</span><span class="p">:</span> <span class="n">VariableSpec</span><span class="p">,</span> <span class="n">objective_fun</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">objective_fun</span><span class="p">,</span> <span class="n">QuadraticObjective</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">total_size</span>
+        <span class="k">if</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Quadratic objective Q shape must be </span><span class="si">{</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">objective_fun</span><span class="o">.</span><span class="n">Q</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Quadratic objective c shape must be </span><span class="si">{</span><span class="p">(</span><span class="n">n</span><span class="p">,)</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">objective_fun</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">obj_flat</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">ParamsDict</span><span class="p">,</span> <span class="n">y_flat</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">value_from_flat</span><span class="p">(</span><span class="n">y_flat</span><span class="p">)</span>
+
+        <span class="n">grad_fun</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">grad_from_flat</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">hess_fun</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">hess_from_flat</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">diag_hess_fun</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">objective_fun</span><span class="o">.</span><span class="n">diag_hess_from_flat</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;quadratic&quot;</span><span class="p">,</span> <span class="n">obj_flat</span><span class="p">,</span> <span class="n">grad_fun</span><span class="p">,</span> <span class="n">hess_fun</span><span class="p">,</span> <span class="n">diag_hess_fun</span>
+
+    <span class="n">obj_flat</span> <span class="o">=</span> <span class="n">wrap_scalar_objective</span><span class="p">(</span><span class="n">var_spec</span><span class="p">,</span> <span class="n">objective_fun</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;nonlinear&quot;</span><span class="p">,</span> <span class="n">obj_flat</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

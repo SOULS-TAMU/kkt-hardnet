@@ -1,0 +1,235 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jaxmodel &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="jaxmodel.__init__" href="module_init.html" />
+    <link rel="prev" title="kkthn.training" href="../kkthn/training.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../package/index.html">Package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Core</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kkthn/index.html">kkthn</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">jaxmodel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="module_init.html">jaxmodel.__init__</a></li>
+<li class="toctree-l3"><a class="reference internal" href="approximations.html">jaxmodel.approximations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="autodiff.html">jaxmodel.autodiff</a></li>
+<li class="toctree-l3"><a class="reference internal" href="blocks.html">jaxmodel.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="bounds.html">jaxmodel.bounds</a></li>
+<li class="toctree-l3"><a class="reference internal" href="builder.html">jaxmodel.builder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="constraints.html">jaxmodel.constraints</a></li>
+<li class="toctree-l3"><a class="reference internal" href="highlevel.html">jaxmodel.highlevel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model.html">jaxmodel.model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="objective.html">jaxmodel.objective</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parameters.html">jaxmodel.parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="types.html">jaxmodel.types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables.html">jaxmodel.variables</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Core</a></li>
+      <li class="breadcrumb-item active">jaxmodel</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/api/core/jaxmodel/index.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="jaxmodel">
+<h1>jaxmodel<a class="headerlink" href="#jaxmodel" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="module_init.html">jaxmodel.__init__</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.VariableBuilder"><code class="docutils literal notranslate"><span class="pre">VariableBuilder</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.VariableSpec"><code class="docutils literal notranslate"><span class="pre">VariableSpec</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.ParameterSpec"><code class="docutils literal notranslate"><span class="pre">ParameterSpec</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.BoundSpec"><code class="docutils literal notranslate"><span class="pre">BoundSpec</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.NLPBuilder"><code class="docutils literal notranslate"><span class="pre">NLPBuilder</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.HighLevelNLPBuilder"><code class="docutils literal notranslate"><span class="pre">HighLevelNLPBuilder</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.QuadraticObjective"><code class="docutils literal notranslate"><span class="pre">QuadraticObjective</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.ConstraintEntry"><code class="docutils literal notranslate"><span class="pre">ConstraintEntry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.eq_scalar"><code class="docutils literal notranslate"><span class="pre">eq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.ineq_scalar"><code class="docutils literal notranslate"><span class="pre">ineq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.eq_block"><code class="docutils literal notranslate"><span class="pre">eq_block()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.ineq_block"><code class="docutils literal notranslate"><span class="pre">ineq_block()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.quadratic_eq_scalar"><code class="docutils literal notranslate"><span class="pre">quadratic_eq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.quadratic_ineq_scalar"><code class="docutils literal notranslate"><span class="pre">quadratic_ineq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.affine_eq_from_parts"><code class="docutils literal notranslate"><span class="pre">affine_eq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.affine_ineq_from_parts"><code class="docutils literal notranslate"><span class="pre">affine_ineq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.nonlinear_eq_from_parts"><code class="docutils literal notranslate"><span class="pre">nonlinear_eq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.nonlinear_ineq_from_parts"><code class="docutils literal notranslate"><span class="pre">nonlinear_ineq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.LinearizationData"><code class="docutils literal notranslate"><span class="pre">LinearizationData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.QuadraticObjectiveData"><code class="docutils literal notranslate"><span class="pre">QuadraticObjectiveData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.SQPSubproblemData"><code class="docutils literal notranslate"><span class="pre">SQPSubproblemData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="module_init.html#jaxmodel.JaxNLPModel"><code class="docutils literal notranslate"><span class="pre">JaxNLPModel</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="approximations.html">jaxmodel.approximations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.LinearizationData"><code class="docutils literal notranslate"><span class="pre">LinearizationData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.QuadraticObjectiveData"><code class="docutils literal notranslate"><span class="pre">QuadraticObjectiveData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.SQPSubproblemData"><code class="docutils literal notranslate"><span class="pre">SQPSubproblemData</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.linearize_constraints_data"><code class="docutils literal notranslate"><span class="pre">linearize_constraints_data()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.linearize_constraints"><code class="docutils literal notranslate"><span class="pre">linearize_constraints()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.quadraticize_objective_data"><code class="docutils literal notranslate"><span class="pre">quadraticize_objective_data()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.quadraticize_objective"><code class="docutils literal notranslate"><span class="pre">quadraticize_objective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.build_sqp_subproblem_data"><code class="docutils literal notranslate"><span class="pre">build_sqp_subproblem_data()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="approximations.html#jaxmodel.approximations.build_sqp_data"><code class="docutils literal notranslate"><span class="pre">build_sqp_data()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="autodiff.html">jaxmodel.autodiff</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autodiff.html#jaxmodel.autodiff.build_grad_y_objective"><code class="docutils literal notranslate"><span class="pre">build_grad_y_objective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiff.html#jaxmodel.autodiff.build_hess_y_objective"><code class="docutils literal notranslate"><span class="pre">build_hess_y_objective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiff.html#jaxmodel.autodiff.build_diag_hess_y_objective"><code class="docutils literal notranslate"><span class="pre">build_diag_hess_y_objective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="autodiff.html#jaxmodel.autodiff.build_jac_y_vector_fun"><code class="docutils literal notranslate"><span class="pre">build_jac_y_vector_fun()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="blocks.html">jaxmodel.blocks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="blocks.html#jaxmodel.blocks.affine_eq_from_parts"><code class="docutils literal notranslate"><span class="pre">affine_eq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blocks.html#jaxmodel.blocks.affine_ineq_from_parts"><code class="docutils literal notranslate"><span class="pre">affine_ineq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blocks.html#jaxmodel.blocks.nonlinear_eq_from_parts"><code class="docutils literal notranslate"><span class="pre">nonlinear_eq_from_parts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="blocks.html#jaxmodel.blocks.nonlinear_ineq_from_parts"><code class="docutils literal notranslate"><span class="pre">nonlinear_ineq_from_parts()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bounds.html">jaxmodel.bounds</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bounds.html#jaxmodel.bounds.BoundSpec"><code class="docutils literal notranslate"><span class="pre">BoundSpec</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="builder.html">jaxmodel.builder</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="builder.html#jaxmodel.builder.NLPBuilder"><code class="docutils literal notranslate"><span class="pre">NLPBuilder</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="constraints.html">jaxmodel.constraints</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.wrap_vector_constraint"><code class="docutils literal notranslate"><span class="pre">wrap_vector_constraint()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.ConstraintEntry"><code class="docutils literal notranslate"><span class="pre">ConstraintEntry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.eq_scalar"><code class="docutils literal notranslate"><span class="pre">eq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.ineq_scalar"><code class="docutils literal notranslate"><span class="pre">ineq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.eq_block"><code class="docutils literal notranslate"><span class="pre">eq_block()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.ineq_block"><code class="docutils literal notranslate"><span class="pre">ineq_block()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.quadratic_eq_scalar"><code class="docutils literal notranslate"><span class="pre">quadratic_eq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.quadratic_ineq_scalar"><code class="docutils literal notranslate"><span class="pre">quadratic_ineq_scalar()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.aggregate_constraints"><code class="docutils literal notranslate"><span class="pre">aggregate_constraints()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="constraints.html#jaxmodel.constraints.aggregate_constraint_jacobian"><code class="docutils literal notranslate"><span class="pre">aggregate_constraint_jacobian()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="highlevel.html">jaxmodel.highlevel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="highlevel.html#jaxmodel.highlevel.HighLevelNLPBuilder"><code class="docutils literal notranslate"><span class="pre">HighLevelNLPBuilder</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">jaxmodel.model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="model.html#jaxmodel.model.JaxNLPModel"><code class="docutils literal notranslate"><span class="pre">JaxNLPModel</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="objective.html">jaxmodel.objective</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="objective.html#jaxmodel.objective.QuadraticObjective"><code class="docutils literal notranslate"><span class="pre">QuadraticObjective</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="objective.html#jaxmodel.objective.wrap_scalar_objective"><code class="docutils literal notranslate"><span class="pre">wrap_scalar_objective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="objective.html#jaxmodel.objective.resolve_objective"><code class="docutils literal notranslate"><span class="pre">resolve_objective()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="parameters.html">jaxmodel.parameters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="parameters.html#jaxmodel.parameters.ParameterSpec"><code class="docutils literal notranslate"><span class="pre">ParameterSpec</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">jaxmodel.types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="variables.html">jaxmodel.variables</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="variables.html#jaxmodel.variables.VariableSpec"><code class="docutils literal notranslate"><span class="pre">VariableSpec</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="variables.html#jaxmodel.variables.VariableBuilder"><code class="docutils literal notranslate"><span class="pre">VariableBuilder</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../kkthn/training.html" class="btn btn-neutral float-left" title="kkthn.training" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="module_init.html" class="btn btn-neutral float-right" title="jaxmodel.__init__" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

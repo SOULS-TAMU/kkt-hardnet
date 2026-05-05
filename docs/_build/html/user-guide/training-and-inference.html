@@ -1,0 +1,207 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Training and Inference &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Examples" href="../examples/index.html" />
+    <link rel="prev" title="Defining Parameter Data" href="defining-parameter-space.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="configuration-options.html">Configuration Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="defining-the-problem.html">Defining the Problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="defining-parameter-space.html">Defining Parameter Data</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Training and Inference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#build-and-train">Build and Train</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-summary-and-training-history">Model Summary and Training History</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#saved-artifacts">Saved Artifacts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reloading-the-model">Reloading the Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#projection-backends">Projection Backends</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LICENSE.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../REMARKS_ON_UPDATES.html">Remarks on Updates</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">User Guide</a></li>
+      <li class="breadcrumb-item active">Training and Inference</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/user-guide/training-and-inference.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="training-and-inference">
+<h1>Training and Inference<a class="headerlink" href="#training-and-inference" title="Link to this heading"></a></h1>
+<p>After defining the symbolic problem and attaching data, choose one of the
+training workflows.</p>
+<section id="build-and-train">
+<h2>Build and Train<a class="headerlink" href="#build-and-train" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>      <span class="c1"># supervised surrogate learning</span>
+<span class="c1"># result = model.optimize() # unsupervised optimization</span>
+<span class="c1"># result = model.estimate() # inverse parameter estimation</span>
+
+<span class="n">run_dir</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;output_dir&quot;</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;run_dir =&quot;</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each run writes a timestamped directory:</p>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;model_name&gt;_&lt;YYYYMMDD&gt;_&lt;HHMMSS&gt;/</span></code></p>
+</section>
+<section id="model-summary-and-training-history">
+<h2>Model Summary and Training History<a class="headerlink" href="#model-summary-and-training-history" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">summary()</span></code> prints the model dimensions, dataset sizes, constraint violation,
+training time, and estimated inference times.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Inference time estimations are based on microbenchmarking on the training
+hardware and may vary across hardware and runtime conditions.</p>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">plot_history()</span></code> saves and displays training curves.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">plot_history</span><span class="p">(</span><span class="n">bg</span><span class="o">=</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/training_history.png"><img alt="../_images/training_history.png" class="align-center" src="../_images/training_history.png" style="width: 100%;" />
+</a>
+</section>
+<section id="saved-artifacts">
+<h2>Saved Artifacts<a class="headerlink" href="#saved-artifacts" title="Link to this heading"></a></h2>
+<p>The following files are generated inside the run directory:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.json</span></code> — Complete problem definition and artifact references used for reload.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">summary.json</span></code> — Final metrics, timing estimates, model dimensions, and native projection status.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">history.csv</span></code> — Per-epoch training and validation metrics.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">parameters.csv</span></code> — Parameter samples used for training and validation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">variables.csv</span></code> — Optional supervised target variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predictions.csv</span></code> — Raw and projected model predictions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model_weights.npz</span></code> — Trained MLP weights and inverse parameters when present.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">projection_native.json</span></code> — Manifest for the native C projection backend.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">native_projection/&lt;source_version&gt;/&lt;platform&gt;/projection_native.so</span></code> — Platform-specific native library on Linux, with corresponding <code class="docutils literal notranslate"><span class="pre">.dll</span></code> or <code class="docutils literal notranslate"><span class="pre">.dylib</span></code> names on Windows/macOS.</p></li>
+</ul>
+</section>
+<section id="reloading-the-model">
+<h2>Reloading the Model<a class="headerlink" href="#reloading-the-model" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kkthn</span><span class="w"> </span><span class="kn">import</span> <span class="n">KKTHardNet</span>
+
+<span class="n">reloaded</span> <span class="o">=</span> <span class="n">KKTHardNet</span><span class="p">()</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/metadata.json&quot;</span><span class="p">)</span>
+
+<span class="n">sample_pred_native</span> <span class="o">=</span> <span class="n">reloaded</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sample_x</span><span class="p">,</span> <span class="n">projection_backend</span><span class="o">=</span><span class="s2">&quot;native&quot;</span><span class="p">)</span>
+<span class="n">sample_pred_jax</span> <span class="o">=</span> <span class="n">reloaded</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sample_x</span><span class="p">,</span> <span class="n">projection_backend</span><span class="o">=</span><span class="s2">&quot;jax&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="projection-backends">
+<h2>Projection Backends<a class="headerlink" href="#projection-backends" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">auto</span></code> — Uses the native backend when a compatible artifact is available, otherwise falls back to JAX.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jax</span></code> — Uses the JAX implementation of the projection layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">native</span></code> — Uses the compiled C projection layer and raises an error if no native artifact can be loaded.</p></li>
+</ul>
+<p>The native backend compiles a platform-specific shared library into the run
+folder. If the model is reloaded on a different supported OS/architecture,
+KKT-HardNet compiles a matching native binary for the current system into the
+same run-local <code class="docutils literal notranslate"><span class="pre">native_projection/</span></code> directory.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To use the native backend, a C compiler such as <code class="docutils literal notranslate"><span class="pre">cc</span></code>, <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, or <code class="docutils literal notranslate"><span class="pre">clang</span></code>
+must be installed.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="defining-parameter-space.html" class="btn btn-neutral float-left" title="Defining Parameter Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../examples/index.html" class="btn btn-neutral float-right" title="Examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

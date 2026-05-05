@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kkthn.builder &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="kkthn.native_projection" href="native_projection.html" />
+    <link rel="prev" title="kkthn.backbone" href="backbone.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../package/index.html">Package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Core</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">kkthn</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="module_init.html">kkthn.__init__</a></li>
+<li class="toctree-l3"><a class="reference internal" href="backbone.html">kkthn.backbone</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kkthn.builder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.Constraint"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.DatasetSpec"><code class="docutils literal notranslate"><span class="pre">DatasetSpec</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.Expression"><code class="docutils literal notranslate"><span class="pre">Expression</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.VectorExpression"><code class="docutils literal notranslate"><span class="pre">VectorExpression</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.Constant"><code class="docutils literal notranslate"><span class="pre">Constant</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.ConstraintList"><code class="docutils literal notranslate"><span class="pre">ConstraintList</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.KKTHardNet"><code class="docutils literal notranslate"><span class="pre">KKTHardNet</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#kkthn.builder.ProblemBuilder"><code class="docutils literal notranslate"><span class="pre">ProblemBuilder</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="native_projection.html">kkthn.native_projection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="projection.html">kkthn.projection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="string_problem.html">kkthn.string_problem</a></li>
+<li class="toctree-l3"><a class="reference internal" href="training.html">kkthn.training</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jaxmodel/index.html">jaxmodel</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../LICENSE.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../REMARKS_ON_UPDATES.html">Remarks on Updates</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Core</a></li>
+          <li class="breadcrumb-item"><a href="index.html">kkthn</a></li>
+      <li class="breadcrumb-item active">kkthn.builder</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/api/core/kkthn/builder.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-kkthn.builder">
+<span id="kkthn-builder"></span><h1>kkthn.builder<a class="headerlink" href="#module-kkthn.builder" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.Constraint">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">Constraint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">&quot;'Expression'&quot;</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#Constraint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.Constraint" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.Constraint.residual">
+<span class="sig-name descname"><span class="pre">residual</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#kkthn.builder.Expression" title="kkthn.builder.Expression"><span class="pre">Expression</span></a></em><a class="headerlink" href="#kkthn.builder.Constraint.residual" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.Constraint.kind">
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#kkthn.builder.Constraint.kind" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.Constraint.text">
+<span class="sig-name descname"><span class="pre">text</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#kkthn.builder.Constraint.text" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.DatasetSpec">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">DatasetSpec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameters_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str'</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="s"><span class="pre">'str</span> <span class="pre">|</span> <span class="pre">None'</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#DatasetSpec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.DatasetSpec" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.DatasetSpec.parameters_path">
+<span class="sig-name descname"><span class="pre">parameters_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#kkthn.builder.DatasetSpec.parameters_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.DatasetSpec.variables_path">
+<span class="sig-name descname"><span class="pre">variables_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#kkthn.builder.DatasetSpec.variables_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.Expression">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">Expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#Expression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.Expression" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.Expression.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#Expression.eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.Expression.eval" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.VectorExpression">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">VectorExpression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#kkthn.builder.Expression" title="kkthn.builder.Expression"><span class="pre">Expression</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#VectorExpression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.VectorExpression" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.VectorExpression.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#VectorExpression.eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.VectorExpression.eval" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.Constant">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">Constant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#Constant"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.Constant" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.ConstraintList">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">ConstraintList</span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#ConstraintList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.ConstraintList" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.ConstraintList.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">constraints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#kkthn.builder.Constraint" title="kkthn.builder.Constraint"><span class="pre">Constraint</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.ConstraintList" title="kkthn.builder.ConstraintList"><span class="pre">ConstraintList</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#ConstraintList.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.ConstraintList.add" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.ConstraintList.equality">
+<span class="sig-name descname"><span class="pre">equality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.ConstraintList" title="kkthn.builder.ConstraintList"><span class="pre">ConstraintList</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#ConstraintList.equality"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.ConstraintList.equality" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.ConstraintList.inequality">
+<span class="sig-name descname"><span class="pre">inequality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.ConstraintList" title="kkthn.builder.ConstraintList"><span class="pre">ConstraintList</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#ConstraintList.inequality"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.ConstraintList.inequality" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">KKTHardNet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'kkthardnet'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="training.html#kkthn.training.KKTTrainConfig" title="kkthn.training.KKTTrainConfig"><span class="pre">KKTTrainConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="projection.html#kkthn.projection.ProjectionSettings" title="kkthn.projection.ProjectionSettings"><span class="pre">ProjectionSettings</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.add_parameter">
+<span class="sig-name descname"><span class="pre">add_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.add_parameter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.add_parameter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.add_variable">
+<span class="sig-name descname"><span class="pre">add_variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.add_variable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.add_variable" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.add_inverse_parameter">
+<span class="sig-name descname"><span class="pre">add_inverse_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.add_inverse_parameter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.add_inverse_parameter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.matrix">
+<span class="sig-name descname"><span class="pre">matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.Constant" title="kkthn.builder.Constant"><span class="pre">Constant</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.matrix" title="Link to this definition"></a></dt>
+<dd><p>Register a constant matrix and return its wrapper.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.vector">
+<span class="sig-name descname"><span class="pre">vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.Constant" title="kkthn.builder.Constant"><span class="pre">Constant</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.vector"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.vector" title="Link to this definition"></a></dt>
+<dd><p>Register a constant vector and return its wrapper.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.tensor">
+<span class="sig-name descname"><span class="pre">tensor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.Constant" title="kkthn.builder.Constant"><span class="pre">Constant</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.tensor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.tensor" title="Link to this definition"></a></dt>
+<dd><p>Register a constant tensor and return its wrapper.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.extract">
+<span class="sig-name descname"><span class="pre">extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#kkthn.builder.Constant" title="kkthn.builder.Constant"><span class="pre">Constant</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.extract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.extract" title="Link to this definition"></a></dt>
+<dd><p>Load arrays from a <code class="docutils literal notranslate"><span class="pre">.npz</span></code> file and expose them as model attributes.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.dataset">
+<span class="sig-name descname"><span class="pre">dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.dataset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.set_dataset">
+<span class="sig-name descname"><span class="pre">set_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.set_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.set_dataset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.use_dataset">
+<span class="sig-name descname"><span class="pre">use_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.use_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.use_dataset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.set_train_config">
+<span class="sig-name descname"><span class="pre">set_train_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="training.html#kkthn.training.KKTTrainConfig" title="kkthn.training.KKTTrainConfig"><span class="pre">KKTTrainConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.set_train_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.set_train_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.set_projection_config">
+<span class="sig-name descname"><span class="pre">set_projection_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="projection.html#kkthn.projection.ProjectionSettings" title="kkthn.projection.ProjectionSettings"><span class="pre">ProjectionSettings</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.set_projection_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.set_projection_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.model">
+<span class="sig-name descname"><span class="pre">model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="training.html#kkthn.training.KKTTrainConfig" title="kkthn.training.KKTTrainConfig"><span class="pre">KKTTrainConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="projection.html#kkthn.projection.ProjectionSettings" title="kkthn.projection.ProjectionSettings"><span class="pre">ProjectionSettings</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.optimize">
+<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="training.html#kkthn.training.KKTTrainConfig" title="kkthn.training.KKTTrainConfig"><span class="pre">KKTTrainConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="projection.html#kkthn.projection.ProjectionSettings" title="kkthn.projection.ProjectionSettings"><span class="pre">ProjectionSettings</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.optimize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.optimize" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.estimate">
+<span class="sig-name descname"><span class="pre">estimate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="training.html#kkthn.training.KKTTrainConfig" title="kkthn.training.KKTTrainConfig"><span class="pre">KKTTrainConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="projection.html#kkthn.projection.ProjectionSettings" title="kkthn.projection.ProjectionSettings"><span class="pre">ProjectionSettings</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.estimate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.estimate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><span class="pre">KKTHardNet</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.load" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection_backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'jax'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.summary" title="Link to this definition"></a></dt>
+<dd><p>Print a compact summary of the current completed or loaded run.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.plot_history">
+<span class="sig-name descname"><span class="pre">plot_history</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'grey'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.plot_history"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.plot_history" title="Link to this definition"></a></dt>
+<dd><p>Plot and save MSE/loss and constraint violation histories.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.lin">
+<span class="sig-name descname"><span class="pre">lin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.lin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.lin" title="Link to this definition"></a></dt>
+<dd><p>Form <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">&#64;</span> <span class="pre">expr</span></code> from an extracted or registered matrix/vector.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.batch_lin">
+<span class="sig-name descname"><span class="pre">batch_lin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.batch_lin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.batch_lin" title="Link to this definition"></a></dt>
+<dd><p>Form a vector expression from a 2D matrix and vector expression.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.quad">
+<span class="sig-name descname"><span class="pre">quad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.Expression" title="kkthn.builder.Expression"><span class="pre">Expression</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.quad"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.quad" title="Link to this definition"></a></dt>
+<dd><p>Form <code class="docutils literal notranslate"><span class="pre">expr.T</span> <span class="pre">&#64;</span> <span class="pre">Q</span> <span class="pre">&#64;</span> <span class="pre">expr</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.batch_quad">
+<span class="sig-name descname"><span class="pre">batch_quad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.VectorExpression" title="kkthn.builder.VectorExpression"><span class="pre">VectorExpression</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.batch_quad"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.batch_quad" title="Link to this definition"></a></dt>
+<dd><p>Form batched quadratic expressions from a rank-3 tensor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.batch_exp">
+<span class="sig-name descname"><span class="pre">batch_exp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#kkthn.builder.VectorExpression" title="kkthn.builder.VectorExpression"><span class="pre">VectorExpression</span></a></span></span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.batch_exp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.batch_exp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.sin">
+<span class="sig-name descname"><span class="pre">sin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.sin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.sin" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.cos">
+<span class="sig-name descname"><span class="pre">cos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.cos"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.cos" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.exp">
+<span class="sig-name descname"><span class="pre">exp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.exp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.exp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.log" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.sqrt">
+<span class="sig-name descname"><span class="pre">sqrt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.sqrt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.sqrt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="kkthn.builder.KKTHardNet.abs">
+<span class="sig-name descname"><span class="pre">abs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/kkthn/builder.html#KKTHardNet.abs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kkthn.builder.KKTHardNet.abs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kkthn.builder.ProblemBuilder">
+<span class="sig-prename descclassname"><span class="pre">kkthn.builder.</span></span><span class="sig-name descname"><span class="pre">ProblemBuilder</span></span><a class="headerlink" href="#kkthn.builder.ProblemBuilder" title="Link to this definition"></a></dt>
+<dd><p>alias of <a class="reference internal" href="#kkthn.builder.KKTHardNet" title="kkthn.builder.KKTHardNet"><code class="xref py py-class docutils literal notranslate"><span class="pre">KKTHardNet</span></code></a></p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="backbone.html" class="btn btn-neutral float-left" title="kkthn.backbone" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="native_projection.html" class="btn btn-neutral float-right" title="kkthn.native_projection" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

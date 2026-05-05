@@ -4,6 +4,7 @@ import csv
 import json
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ import numpy as np
 import optax
 
 from .backbone import init_mlp_params, make_batched_mlp_apply
+from .native_projection import load_or_compile_native_projection
 from .projection import ProjectionSettings, make_projection_layer
 
 jax.config.update("jax_enable_x64", True)
@@ -20,8 +22,8 @@ jax.config.update("jax_enable_x64", True)
 
 @dataclass(frozen=True)
 class KKTTrainConfig:
-    epochs: int = 2
-    batch_size: int = 8
+    epochs: int = 1200
+    batch_size: int = 32
     learning_rate: float = 1e-3
     train_frac: float = 0.8
     hidden_size: int = 64
@@ -30,7 +32,22 @@ class KKTTrainConfig:
     dtype: str = "float64"
     print_every: int = 1
     drop_last: bool = False
+    eta: float | None = None
+    epoch_mlp: int | None = None
+    cons_alpha: float = 0.0
     projection: ProjectionSettings = ProjectionSettings()
+
+    def __post_init__(self) -> None:
+        if self.eta is None and self.epoch_mlp is None:
+            raise ValueError("At least one of eta or epoch_mlp must be provided in the training config.")
+        if self.eta is not None and float(self.eta) < 0.0:
+            raise ValueError("eta must be nonnegative when provided.")
+        if self.epoch_mlp is not None and int(self.epoch_mlp) < 1:
+            raise ValueError("epoch_mlp must be at least 1 when provided.")
+        if self.epoch_mlp is not None and int(self.epoch_mlp) > int(self.epochs):
+            raise ValueError("epoch_mlp must be less than or equal to epochs.")
+        if float(self.cons_alpha) < 0.0:
+            raise ValueError("cons_alpha must be nonnegative.")
 
 
 def _dtype(name: str):
@@ -80,6 +97,22 @@ def _measure_time(fn, *args, repeats: int = 5) -> float:
         _sync(out)
         durations.append(time.perf_counter() - t0)
     return float(np.mean(durations))
+
+
+def _fmt_metric(x, col_w: int = 12) -> str:
+    return f"{float(x):>{col_w}.4e}"
+
+
+def _count_mlp_parameters(params: Any, *, inverse_mode: bool) -> int:
+    params_host = jax.device_get(params)
+    network = params_host["network"] if inverse_mode else params_host
+    total = 0
+    for layer in network:
+        total += int(np.asarray(layer["W"]).size)
+        total += int(np.asarray(layer["b"]).size)
+    if inverse_mode:
+        total += int(np.asarray(params_host["inverse"]).size)
+    return total
 
 
 def _json_safe(value: Any):
@@ -168,6 +201,14 @@ def _write_predictions_csv(
             writer.writerow(row)
 
 
+def _augment_numpy_x(params: Any, x_batch: np.ndarray, *, inverse_mode: bool) -> np.ndarray:
+    if not inverse_mode:
+        return np.asarray(x_batch, dtype=np.float64)
+    theta = np.asarray(jax.device_get(params["inverse"]), dtype=np.float64).reshape(1, -1)
+    theta_batch = np.broadcast_to(theta, (int(x_batch.shape[0]), theta.shape[1]))
+    return np.concatenate([np.asarray(x_batch, dtype=np.float64), theta_batch], axis=1)
+
+
 def _save_model_weights(path: Path, params: Any, *, inverse_mode: bool) -> dict[str, Any]:
     params_host = jax.device_get(params)
     network = params_host["network"] if inverse_mode else params_host
@@ -236,6 +277,9 @@ def train_kkt_hardnet(
     task: str = "surrogate",
 ) -> dict[str, Any]:
     train_dtype = _dtype(cfg.dtype)
+    eta = None if cfg.eta is None else float(cfg.eta)
+    epoch_mlp = None if cfg.epoch_mlp is None else int(cfg.epoch_mlp)
+    cons_alpha = float(cfg.cons_alpha)
     X_np = np.asarray(X, dtype=np.float64)
     task_name = str(task).strip().lower()
     if task_name not in {"surrogate", "estimate", "optimize"}:
@@ -319,9 +363,17 @@ def train_kkt_hardnet(
         return jnp.concatenate([x_batch, theta_batch], axis=1)
 
     @jax.jit
-    def model_forward(params_in, x_batch):
-        y_hat = batched_mlp_apply(network_tree(params_in), x_batch)
-        y_proj = projection.project(augmented_x(params_in, x_batch), y_hat)
+    def backbone_forward_fn(params_in, x_batch):
+        return batched_mlp_apply(network_tree(params_in), x_batch)
+
+    @jax.jit
+    def projection_only_fn(params_in, x_batch, y_hat):
+        return projection.project(augmented_x(params_in, x_batch), y_hat)
+
+    @jax.jit
+    def projected_forward_fn(params_in, x_batch):
+        y_hat = backbone_forward_fn(params_in, x_batch)
+        y_proj = projection_only_fn(params_in, x_batch, y_hat)
         return y_hat, y_proj
 
     @jax.jit
@@ -339,57 +391,81 @@ def train_kkt_hardnet(
         return eq_l2, ineq_l2
 
     @jax.jit
-    def loss_fn(params_in, x_batch, y_batch):
-        y_hat, y_proj = model_forward(params_in, x_batch)
+    def task_loss_on_outputs(params_in, x_batch, y_batch, y_out):
         if supervised:
-            return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
-        del y_hat, y_batch
-        return jnp.mean(objective_batch(params_in, x_batch, y_proj))
+            return jnp.mean((y_out - y_batch) ** 2)
+            # return jnp.mean(jnp.sum((y_out - y_batch) ** 2, axis=1))
+        del y_batch
+        return jnp.mean(objective_batch(params_in, x_batch, y_out))
 
     @jax.jit
-    def train_step(params_in, opt_state_in, x_batch, y_batch):
-        loss_val, grads = jax.value_and_grad(loss_fn)(params_in, x_batch, y_batch)
+    def consistency_loss(y_hat, y_tilde):
+        return cons_alpha * jnp.mean((y_hat - y_tilde) ** 2)
+
+    @jax.jit
+    def mlp_loss_fn(params_in, x_batch, y_batch):
+        y_hat = backbone_forward_fn(params_in, x_batch)
+        return task_loss_on_outputs(params_in, x_batch, y_batch, y_hat)
+
+    @jax.jit
+    def projection_loss_fn(params_in, x_batch, y_batch):
+        y_hat, y_tilde = projected_forward_fn(params_in, x_batch)
+        task_loss = task_loss_on_outputs(params_in, x_batch, y_batch, y_tilde)
+        cons_loss = consistency_loss(y_hat, y_tilde)
+        return task_loss + cons_loss
+
+    @jax.jit
+    def train_step_mlp(params_in, opt_state_in, x_batch, y_batch):
+        loss_val, grads = jax.value_and_grad(mlp_loss_fn)(params_in, x_batch, y_batch)
         updates, opt_state_out = optimizer.update(grads, opt_state_in, params_in)
         params_out = optax.apply_updates(params_in, updates)
         return params_out, opt_state_out, loss_val
 
     @jax.jit
-    def eval_metrics(params_in, x_batch, y_batch):
-        y_hat, y_proj = model_forward(params_in, x_batch)
-        if supervised:
-            loss = jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
-            raw_metric = jnp.mean(jnp.sum((y_hat - y_batch) ** 2, axis=1))
-        else:
-            del y_batch
-            loss = jnp.mean(objective_batch(params_in, x_batch, y_proj))
-            raw_metric = jnp.mean(objective_batch(params_in, x_batch, y_hat))
-        eq_l2, ineq_l2 = constraint_violation_batch(params_in, x_batch, y_proj)
-        return loss, raw_metric, eq_l2, ineq_l2, y_hat, y_proj
+    def train_step_projection(params_in, opt_state_in, x_batch, y_batch):
+        loss_val, grads = jax.value_and_grad(projection_loss_fn)(params_in, x_batch, y_batch)
+        updates, opt_state_out = optimizer.update(grads, opt_state_in, params_in)
+        params_out = optax.apply_updates(params_in, updates)
+        return params_out, opt_state_out, loss_val
 
     @jax.jit
-    def backbone_forward_fn(params_in, x_batch):
-        return batched_mlp_apply(network_tree(params_in), x_batch)
-
-    @jax.jit
-    def projection_only_fn(params_in, x_batch, y_hat):
-        return projection.project(augmented_x(params_in, x_batch), y_hat)
-
-    @jax.jit
-    def forward_loss_fn(params_in, x_batch, y_batch):
+    def eval_metrics_mlp(params_in, x_batch, y_batch):
         y_hat = backbone_forward_fn(params_in, x_batch)
-        y_proj = projection_only_fn(params_in, x_batch, y_hat)
-        if supervised:
-            return jnp.mean(jnp.sum((y_proj - y_batch) ** 2, axis=1))
-        del y_batch
-        return jnp.mean(objective_batch(params_in, x_batch, y_proj))
+        task_loss = task_loss_on_outputs(params_in, x_batch, y_batch, y_hat)
+        eq_l2, ineq_l2 = constraint_violation_batch(params_in, x_batch, y_hat)
+        zero = jnp.asarray(0.0, dtype=train_dtype)
+        return task_loss, task_loss, eq_l2, ineq_l2, y_hat, y_hat, task_loss, zero
 
-    grad_only_fn = jax.jit(jax.grad(forward_loss_fn))
+    @jax.jit
+    def eval_metrics_projection(params_in, x_batch, y_batch):
+        y_hat, y_tilde = projected_forward_fn(params_in, x_batch)
+        task_loss = task_loss_on_outputs(params_in, x_batch, y_batch, y_tilde)
+        cons_loss = consistency_loss(y_hat, y_tilde)
+        total_loss = task_loss + cons_loss
+        raw_metric = task_loss_on_outputs(params_in, x_batch, y_batch, y_hat)
+        eq_l2, ineq_l2 = constraint_violation_batch(params_in, x_batch, y_tilde)
+        return total_loss, raw_metric, eq_l2, ineq_l2, y_hat, y_tilde, task_loss, cons_loss
+
+    @jax.jit
+    def forward_loss_mlp_fn(params_in, x_batch, y_batch):
+        y_hat = backbone_forward_fn(params_in, x_batch)
+        return task_loss_on_outputs(params_in, x_batch, y_batch, y_hat)
+
+    @jax.jit
+    def forward_loss_projection_fn(params_in, x_batch, y_batch):
+        return projection_loss_fn(params_in, x_batch, y_batch)
+
+    grad_only_mlp_fn = jax.jit(jax.grad(forward_loss_mlp_fn))
+    grad_only_projection_fn = jax.jit(jax.grad(forward_loss_projection_fn))
 
     @jax.jit
     def optimizer_update_fn(params_in, opt_state_in, grads):
         updates, opt_state_out = optimizer.update(grads, opt_state_in, params_in)
         return optax.apply_updates(params_in, updates), opt_state_out
 
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    col_w = 12
+    print(f"Model training started! [{now}]\n")
     print("KKT-HardNet")
     print(f"  dims: n_x={dims['n_x']} n_y={dims['n_y']} n_eq={dims['n_eq']} n_ineq={dims['n_ineq']}")
     print(f"  task: {task_name}")
@@ -400,6 +476,18 @@ def train_kkt_hardnet(
         print("  mode: forward")
     print(f"  samples: train={Xtr.shape[0]} val={Xva.shape[0]} batch_size={cfg.batch_size}")
     print(f"  network: {layer_sizes}")
+    print(f"  eta: {'n/a' if eta is None else eta}")
+    print(f"  epoch_mlp: {'n/a' if epoch_mlp is None else epoch_mlp}")
+    print(f"  cons_alpha: {cons_alpha}")
+    print("=" * 120)
+    print(f"{'Epoch':>{col_w}} | {'Training':^{col_w * 3 + 2}} | {'Validation':^{col_w * 3 + 2}}")
+    print("-" * 120)
+    print(
+        f"{'':>{col_w}} | "
+        f"{'Loss':>{col_w}} {'Eq':>{col_w}} {'Ineq':>{col_w}} | "
+        f"{'Loss':>{col_w}} {'Eq':>{col_w}} {'Ineq':>{col_w}}"
+    )
+    print("=" * 120)
 
     warm_train = next(_iterate_minibatches(Xtr, Ytr, batch_size=cfg.batch_size, seed=cfg.seed, drop_last=cfg.drop_last))
     warm_val = next(_iterate_minibatches(Xva, Yva, batch_size=cfg.batch_size, seed=cfg.seed, drop_last=False))
@@ -407,13 +495,34 @@ def train_kkt_hardnet(
     warm_y = jnp.asarray(warm_train[1], dtype=train_dtype)
     warm_vx = jnp.asarray(warm_val[0], dtype=train_dtype)
     warm_vy = jnp.asarray(warm_val[1], dtype=train_dtype)
-    warm_params, warm_opt_state, warm_loss = train_step(params, opt_state, warm_x, warm_y)
-    warm_eval = eval_metrics(params, warm_vx, warm_vy)
+    warm_params, warm_opt_state, warm_loss = train_step_mlp(params, opt_state, warm_x, warm_y)
+    warm_proj_params, warm_proj_opt_state, warm_proj_loss = train_step_projection(params, opt_state, warm_x, warm_y)
+    warm_eval = eval_metrics_mlp(params, warm_vx, warm_vy)
+    warm_proj_eval = eval_metrics_projection(params, warm_vx, warm_vy)
     warm_hat = backbone_forward_fn(params, warm_x)
     warm_proj = projection_only_fn(params, warm_x, warm_hat)
-    warm_grads = grad_only_fn(params, warm_x, warm_y)
+    warm_grads = grad_only_mlp_fn(params, warm_x, warm_y)
+    warm_proj_grads = grad_only_projection_fn(params, warm_x, warm_y)
     warm_update = optimizer_update_fn(params, opt_state, warm_grads)
-    _sync((warm_params, warm_opt_state, warm_loss, warm_eval, warm_hat, warm_proj, warm_grads, warm_update))
+    warm_proj_update = optimizer_update_fn(params, opt_state, warm_proj_grads)
+    _sync(
+        (
+            warm_params,
+            warm_opt_state,
+            warm_loss,
+            warm_proj_params,
+            warm_proj_opt_state,
+            warm_proj_loss,
+            warm_eval,
+            warm_proj_eval,
+            warm_hat,
+            warm_proj,
+            warm_grads,
+            warm_proj_grads,
+            warm_update,
+            warm_proj_update,
+        )
+    )
 
     history: list[dict[str, float | int]] = []
     train_step_time_total = 0.0
@@ -421,8 +530,16 @@ def train_kkt_hardnet(
     train_eval_time_total = 0.0
     train_batch_count_total = 0
     validation_batch_count_total = 0
+    projection_train_batch_count_total = 0
+    projection_validation_batch_count_total = 0
+    mlp_train_batch_count_total = 0
+    mlp_validation_batch_count_total = 0
+    projection_start_epoch: int | None = None
+    switch_reason: str | None = None
+    projection_active = False
     t0 = time.perf_counter()
     for epoch in range(1, int(cfg.epochs) + 1):
+        epoch_projection_active = projection_active
         batch_losses = []
         epoch_train_batches = 0
         epoch_train_step_time = 0.0
@@ -431,7 +548,12 @@ def train_kkt_hardnet(
             xb_j = jnp.asarray(xb, dtype=train_dtype)
             yb_j = jnp.asarray(yb, dtype=train_dtype)
             batch_t0 = time.perf_counter()
-            params, opt_state, batch_loss = train_step(params, opt_state, xb_j, yb_j)
+            if epoch_projection_active:
+                params, opt_state, batch_loss = train_step_projection(params, opt_state, xb_j, yb_j)
+                projection_train_batch_count_total += 1
+            else:
+                params, opt_state, batch_loss = train_step_mlp(params, opt_state, xb_j, yb_j)
+                mlp_train_batch_count_total += 1
             _sync(batch_loss)
             batch_elapsed = time.perf_counter() - batch_t0
             train_step_time_total += batch_elapsed
@@ -442,38 +564,53 @@ def train_kkt_hardnet(
         train_epoch_time = time.perf_counter() - train_epoch_t0
 
         train_eval_t0 = time.perf_counter()
-        tr_loss, tr_raw, tr_eq, tr_ineq, _tr_hat, _tr_proj = eval_metrics(params, Xtr_j, Ytr_j)
-        _sync((tr_loss, tr_raw, tr_eq, tr_ineq))
+        if epoch_projection_active:
+            tr_loss, tr_raw, tr_eq, tr_ineq, _tr_hat, _tr_proj, tr_task, tr_cons = eval_metrics_projection(params, Xtr_j, Ytr_j)
+        else:
+            tr_loss, tr_raw, tr_eq, tr_ineq, _tr_hat, _tr_proj, tr_task, tr_cons = eval_metrics_mlp(params, Xtr_j, Ytr_j)
+        _sync((tr_loss, tr_raw, tr_eq, tr_ineq, tr_task, tr_cons))
         train_eval_time = time.perf_counter() - train_eval_t0
         train_eval_time_total += train_eval_time
 
         val_epoch_t0 = time.perf_counter()
         val_weight = 0
-        val_acc = np.zeros((4,), dtype=np.float64)
+        val_acc = np.zeros((6,), dtype=np.float64)
         epoch_val_batches = 0
         for xb, yb in _iterate_minibatches(Xva, Yva, batch_size=cfg.batch_size, seed=cfg.seed, drop_last=False):
             xb_j = jnp.asarray(xb, dtype=train_dtype)
             yb_j = jnp.asarray(yb, dtype=train_dtype)
-            va_batch = eval_metrics(params, xb_j, yb_j)
+            if epoch_projection_active:
+                va_batch = eval_metrics_projection(params, xb_j, yb_j)
+                projection_validation_batch_count_total += 1
+            else:
+                va_batch = eval_metrics_mlp(params, xb_j, yb_j)
+                mlp_validation_batch_count_total += 1
             _sync(va_batch)
             weight = int(xb.shape[0])
-            val_acc += weight * np.asarray([float(va_batch[0]), float(va_batch[1]), float(va_batch[2]), float(va_batch[3])])
+            val_acc += weight * np.asarray(
+                [float(va_batch[0]), float(va_batch[1]), float(va_batch[2]), float(va_batch[3]), float(va_batch[6]), float(va_batch[7])]
+            )
             val_weight += weight
             epoch_val_batches += 1
             validation_batch_count_total += 1
         validation_epoch_time = time.perf_counter() - val_epoch_t0
         validation_time_total += validation_epoch_time
-        va_loss, va_raw, va_eq, va_ineq = (val_acc / max(1, val_weight)).tolist()
+        va_loss, va_raw, va_eq, va_ineq, va_task, va_cons = (val_acc / max(1, val_weight)).tolist()
         row = {
             "epoch": epoch,
-            "train_loss": float(tr_loss),
+            "tr_loss": float(tr_loss),
             "train_raw_metric": float(tr_raw),
-            "train_eq_l2": float(tr_eq),
-            "train_ineq_l2": float(tr_ineq),
+            "tr_eq": float(tr_eq),
+            "tr_ineq": float(tr_ineq),
+            "tr_task_loss": float(tr_task),
+            "tr_consistency_loss": float(tr_cons),
             "val_loss": float(va_loss),
             "val_raw_metric": float(va_raw),
-            "val_eq_l2": float(va_eq),
-            "val_ineq_l2": float(va_ineq),
+            "val_eq": float(va_eq),
+            "val_ineq": float(va_ineq),
+            "val_task_loss": float(va_task),
+            "val_consistency_loss": float(va_cons),
+            "projection_active": int(epoch_projection_active),
             "mean_batch_loss": float(np.mean(batch_losses)) if batch_losses else float("nan"),
             "train_epoch_time_sec": float(train_epoch_time),
             "train_step_time_sec": float(epoch_train_step_time),
@@ -488,18 +625,39 @@ def train_kkt_hardnet(
         history.append(row)
         if epoch == 1 or epoch == int(cfg.epochs) or (epoch % max(1, int(cfg.print_every))) == 0:
             print(
-                f"epoch {epoch:04d} | "
-                f"train={row['train_loss']:.6e} val={row['val_loss']:.6e} "
-                f"raw_val={row['val_raw_metric']:.6e} "
-                f"eq={row['val_eq_l2']:.3e} ineq={row['val_ineq_l2']:.3e} | "
-                f"train_batch={row['train_time_per_batch_sec']:.4f}s "
-                f"val_batch={row['validation_time_per_batch_sec']:.4f}s"
+                f"{f'{epoch:03d}/{int(cfg.epochs):03d}':>{col_w}} | "
+                f"{_fmt_metric(row['tr_loss'], col_w)} "
+                f"{_fmt_metric(row['tr_eq'], col_w)} "
+                f"{_fmt_metric(row['tr_ineq'], col_w)} | "
+                f"{_fmt_metric(row['val_loss'], col_w)} "
+                f"{_fmt_metric(row['val_eq'], col_w)} "
+                f"{_fmt_metric(row['val_ineq'], col_w)}"
             )
+        if not epoch_projection_active:
+            reached_eta = eta is not None and float(tr_loss) <= eta
+            reached_epoch_limit = epoch_mlp is not None and epoch >= epoch_mlp
+            if reached_eta or reached_epoch_limit:
+                projection_active = True
+                if epoch < int(cfg.epochs):
+                    projection_start_epoch = epoch + 1
+                reasons = []
+                if reached_eta:
+                    reasons.append("eta")
+                if reached_epoch_limit:
+                    reasons.append("epoch_mlp")
+                switch_reason = "+".join(reasons)
+                if projection_start_epoch is not None:
+                    print(
+                        f"Switching to projection phase at epoch {projection_start_epoch} "
+                        f"(trigger: {switch_reason})."
+                    )
+    print("=" * 120)
+    print("")
 
     train_time = time.perf_counter() - t0
-    va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj = eval_metrics(params, Xva_j, Yva_j)
-    _sync((va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj))
-    all_hat, all_proj = model_forward(params, Xall_j)
+    va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj, va_task_j, va_cons_j = eval_metrics_projection(params, Xva_j, Yva_j)
+    _sync((va_loss_j, va_raw_j, va_eq_j, va_ineq_j, va_hat, va_proj, va_task_j, va_cons_j))
+    all_hat, all_proj = projected_forward_fn(params, Xall_j)
     _sync((all_hat, all_proj))
 
     sample_train_x = jnp.asarray(warm_train[0], dtype=train_dtype)
@@ -507,21 +665,25 @@ def train_kkt_hardnet(
     sample_val_x = jnp.asarray(warm_val[0], dtype=train_dtype)
     sample_train_hat = backbone_forward_fn(params, sample_train_x)
     sample_val_hat = backbone_forward_fn(params, sample_val_x)
-    sample_grads = grad_only_fn(params, sample_train_x, sample_train_y)
-    _sync((sample_train_hat, sample_val_hat, sample_grads))
+    sample_grads_mlp = grad_only_mlp_fn(params, sample_train_x, sample_train_y)
+    sample_grads_projection = grad_only_projection_fn(params, sample_train_x, sample_train_y)
+    _sync((sample_train_hat, sample_val_hat, sample_grads_mlp, sample_grads_projection))
 
     backbone_train_t = _measure_time(backbone_forward_fn, params, sample_train_x)
     backbone_val_t = _measure_time(backbone_forward_fn, params, sample_val_x)
     projection_train_t = _measure_time(projection_only_fn, params, sample_train_x, sample_train_hat)
     projection_val_t = _measure_time(projection_only_fn, params, sample_val_x, sample_val_hat)
-    forward_total_t = _measure_time(forward_loss_fn, params, sample_train_x, sample_train_y)
-    grad_total_t = _measure_time(grad_only_fn, params, sample_train_x, sample_train_y)
-    optimizer_t = _measure_time(optimizer_update_fn, params, opt_state, sample_grads)
-    backward_t = max(0.0, grad_total_t - forward_total_t)
+    mlp_forward_total_t = _measure_time(forward_loss_mlp_fn, params, sample_train_x, sample_train_y)
+    projection_forward_total_t = _measure_time(forward_loss_projection_fn, params, sample_train_x, sample_train_y)
+    mlp_grad_total_t = _measure_time(grad_only_mlp_fn, params, sample_train_x, sample_train_y)
+    projection_grad_total_t = _measure_time(grad_only_projection_fn, params, sample_train_x, sample_train_y)
+    optimizer_t = _measure_time(optimizer_update_fn, params, opt_state, sample_grads_projection)
+    mlp_backward_t = max(0.0, mlp_grad_total_t - mlp_forward_total_t)
+    projection_backward_t = max(0.0, projection_grad_total_t - projection_forward_total_t)
 
     backbone_total = backbone_train_t * train_batch_count_total + backbone_val_t * validation_batch_count_total
-    projection_total = projection_train_t * train_batch_count_total + projection_val_t * validation_batch_count_total
-    backward_total = backward_t * train_batch_count_total
+    projection_total = projection_train_t * projection_train_batch_count_total + projection_val_t * projection_validation_batch_count_total
+    backward_total = mlp_backward_t * mlp_train_batch_count_total + projection_backward_t * projection_train_batch_count_total
     optimizer_total = optimizer_t * train_batch_count_total
     component_total = backbone_total + projection_total + backward_total + optimizer_total
     component_percent = {
@@ -541,14 +703,21 @@ def train_kkt_hardnet(
         "avg_validation_time_per_batch_sec": float(validation_time_total / max(1, validation_batch_count_total)),
         "train_batches_total": int(train_batch_count_total),
         "validation_batches_total": int(validation_batch_count_total),
+        "mlp_train_batches_total": int(mlp_train_batch_count_total),
+        "mlp_validation_batches_total": int(mlp_validation_batch_count_total),
+        "projection_train_batches_total": int(projection_train_batch_count_total),
+        "projection_validation_batches_total": int(projection_validation_batch_count_total),
         "profiled_batch_times_sec": {
             "backbone_train": float(backbone_train_t),
             "backbone_validation": float(backbone_val_t),
             "projection_train": float(projection_train_t),
             "projection_validation": float(projection_val_t),
-            "forward_total_train": float(forward_total_t),
-            "grad_total_train": float(grad_total_t),
-            "backprop_estimated_train": float(backward_t),
+            "mlp_forward_total_train": float(mlp_forward_total_t),
+            "projection_forward_total_train": float(projection_forward_total_t),
+            "mlp_grad_total_train": float(mlp_grad_total_t),
+            "projection_grad_total_train": float(projection_grad_total_t),
+            "mlp_backprop_estimated_train": float(mlp_backward_t),
+            "projection_backprop_estimated_train": float(projection_backward_t),
             "optimizer_train": float(optimizer_t),
         },
         "component_time_total_estimated_sec": {
@@ -559,6 +728,49 @@ def train_kkt_hardnet(
         },
         "component_time_percent": component_percent,
     }
+
+    inference_timing: dict[str, Any] = {
+        "estimated_inference_samples": 0,
+        "estimated_jax_single_inference_time_sec": None,
+        "estimated_native_single_inference_time_sec": None,
+        "estimated_jax_batch_inference_time_sec": None,
+        "estimated_jax_batch_size": int(cfg.batch_size),
+        "estimated_native_single_error": "native C projection backend is not available for this KKT-HardNet projection yet",
+    }
+    if Xtr.shape[0] > 0:
+        n_single = int(min(50, Xtr.shape[0]))
+        single_samples = jnp.asarray(Xtr[:n_single], dtype=train_dtype)
+        try:
+            _sync(projected_forward_fn(params, single_samples[:1]))
+            single_t0 = time.perf_counter()
+            for idx in range(n_single):
+                _sync(projected_forward_fn(params, single_samples[idx : idx + 1]))
+            single_elapsed = time.perf_counter() - single_t0
+            inference_timing["estimated_inference_samples"] = n_single
+            inference_timing["estimated_jax_single_inference_time_sec"] = float(single_elapsed / max(1, n_single))
+            inference_timing["estimated_jax_single_total_time_sec"] = float(single_elapsed)
+            inference_timing["estimated_jax_single_error"] = None
+        except Exception as exc:
+            inference_timing["estimated_jax_single_error"] = f"{type(exc).__name__}: {exc}"
+
+        try:
+            batch_size = int(max(1, cfg.batch_size))
+            if Xtr.shape[0] < batch_size:
+                reps = int(np.ceil(batch_size / Xtr.shape[0]))
+                batch_np = np.tile(Xtr, (reps, 1))[:batch_size]
+            else:
+                batch_np = Xtr[:batch_size]
+            batch_j = jnp.asarray(batch_np, dtype=train_dtype)
+            _sync(projected_forward_fn(params, batch_j))
+            batch_t0 = time.perf_counter()
+            for _ in range(50):
+                _sync(projected_forward_fn(params, batch_j))
+            batch_elapsed = time.perf_counter() - batch_t0
+            inference_timing["estimated_jax_batch_inference_time_sec"] = float(batch_elapsed / 50.0)
+            inference_timing["estimated_jax_batch_total_time_sec"] = float(batch_elapsed)
+            inference_timing["estimated_jax_batch_error"] = None
+        except Exception as exc:
+            inference_timing["estimated_jax_batch_error"] = f"{type(exc).__name__}: {exc}"
 
     inverse_summary = None
     if inverse_mode:
@@ -592,11 +804,20 @@ def train_kkt_hardnet(
         "dims": dims,
         "config": asdict(cfg),
         "metadata": metadata or {},
+        "phase_transition": {
+            "eta": eta,
+            "epoch_mlp": epoch_mlp,
+            "cons_alpha": cons_alpha,
+            "projection_started": projection_start_epoch is not None,
+            "projection_start_epoch": projection_start_epoch,
+            "switch_reason": switch_reason,
+        },
         "history": history,
         "final": final,
         "final_metrics": final,
         "training_wall_time_sec": train_time,
         "timing_profile": timing_profile,
+        "inference_timing": inference_timing,
         "inverse_parameters": inverse_summary,
         "params": params,
         "column_names": {
@@ -627,6 +848,7 @@ def train_kkt_hardnet(
         predictions_file = output / "predictions.csv"
         weights_file = output / "model_weights.npz"
         inverse_file = output / "inverse_comparison.json"
+        native_manifest_file = output / "projection_native.json"
         _write_history_csv(history_file, history)
         _write_predictions_csv(
             predictions_file,
@@ -639,12 +861,44 @@ def train_kkt_hardnet(
             parameter_names=parameter_names,
             variable_names=variable_names,
         )
+        print(f"⏱️ Model training time (wall time) = {train_time:.4f} seconds")
+        print("✅ Model training finished!")
+        print("💾 Model saved!")
+        print("📦 Postprocessing...")
+        print("Meanwhile you can take a break and stay hydrated! 🧊💧😃")
         weights_manifest = _save_model_weights(weights_file, params, inverse_mode=inverse_mode)
+        native_projection, native_manifest = load_or_compile_native_projection(
+            output,
+            problem=(metadata or {}).get("problem", {}) if isinstance(metadata, dict) else {},
+            settings=asdict(cfg.projection),
+        )
+        if native_projection is not None and Xtr.shape[0] > 0:
+            n_native = int(min(50, Xtr.shape[0]))
+            native_x = Xtr[:n_native]
+            try:
+                sample_x_j = jnp.asarray(native_x[:1], dtype=train_dtype)
+                sample_yhat = backbone_forward_fn(params, sample_x_j)
+                _sync(sample_yhat)
+                native_projection.project(_augment_numpy_x(params, native_x[:1], inverse_mode=inverse_mode), np.asarray(sample_yhat))
+                native_t0 = time.perf_counter()
+                for idx in range(n_native):
+                    x_one = native_x[idx : idx + 1]
+                    x_one_j = jnp.asarray(x_one, dtype=train_dtype)
+                    yhat_one = backbone_forward_fn(params, x_one_j)
+                    _sync(yhat_one)
+                    native_projection.project(_augment_numpy_x(params, x_one, inverse_mode=inverse_mode), np.asarray(yhat_one))
+                native_elapsed = time.perf_counter() - native_t0
+                inference_timing["estimated_native_single_inference_time_sec"] = float(native_elapsed / max(1, n_native))
+                inference_timing["estimated_native_single_total_time_sec"] = float(native_elapsed)
+                inference_timing["estimated_native_single_error"] = None
+            except Exception as exc:
+                inference_timing["estimated_native_single_error"] = f"{type(exc).__name__}: {exc}"
         artifacts = {
             "history": history_file.name,
             "summary": "summary.json",
             "model_weights": weights_file.name,
             "predictions": predictions_file.name,
+            "native_projection_manifest": native_manifest_file.name,
         }
         if (output / "config.json").exists():
             artifacts["config"] = "config.json"
@@ -656,8 +910,32 @@ def train_kkt_hardnet(
             if k not in {"params", "val_predictions", "history", "predictions"}
         }
         summary["model_weights"] = weights_manifest
+        summary["native_projection"] = native_manifest
         summary["artifacts"] = artifacts
         summary["metrics_at_end"] = final
+        summary.update(
+            {
+                "model_name": (metadata or {}).get("problem", {}).get("name", "kkthardnet")
+                if isinstance((metadata or {}).get("problem"), dict)
+                else "kkthardnet",
+                "num_parameters": int(data_n_x),
+                "num_variables": int(dims["n_y"]),
+                "num_equalities": int(dims["n_eq"]),
+                "num_inequalities": int(dims["n_ineq"]),
+                "train_samples": int(Xtr.shape[0]),
+                "val_samples": int(Xva.shape[0]),
+                "num_network_parameters": _count_mlp_parameters(params, inverse_mode=inverse_mode),
+                "max_violation": float(
+                    max(
+                        abs(float(final.get("tr_eq", 0.0))),
+                        abs(float(final.get("tr_ineq", 0.0))),
+                        abs(float(final.get("val_eq", 0.0))),
+                        abs(float(final.get("val_ineq", 0.0))),
+                    )
+                ),
+                **inference_timing,
+            }
+        )
         summary["epoch_and_batch_timing"] = {
             "final_train_epoch_time_sec": final["train_epoch_time_sec"],
             "final_validation_epoch_time_sec": final["validation_epoch_time_sec"],
@@ -676,25 +954,23 @@ def train_kkt_hardnet(
                 json.dump(_json_safe(inverse_summary), fh, indent=2, sort_keys=True)
         out["output_dir"] = str(output)
         out["model_weights_manifest"] = weights_manifest
-        print(f"Saved run artifacts: {output}")
-
-    print(f"Training time: {train_time:.3f}s")
-    print("=== Timing summary ===")
-    print(f"Train step time total      : {train_step_time_total:.3f}s")
-    print(f"Validation time total      : {validation_time_total:.3f}s")
-    print(f"Avg train time / epoch     : {timing_profile['avg_train_time_per_epoch_sec']:.4f}s")
-    print(f"Avg validation time / epoch: {timing_profile['avg_validation_time_per_epoch_sec']:.4f}s")
-    print(f"Avg train time / batch     : {timing_profile['avg_train_time_per_batch_sec']:.4f}s")
-    print(f"Avg validation time / batch: {timing_profile['avg_validation_time_per_batch_sec']:.4f}s")
-    print("=== Profiled component time distribution ===")
-    print(f"Backbone forward : {component_percent['backbone']:6.2f}%")
-    print(f"Projection       : {component_percent['projection']:6.2f}%")
-    print(f"Backprop         : {component_percent['backprop']:6.2f}%")
-    print(f"Optimizer update : {component_percent['optimizer']:6.2f}%")
-    if inverse_summary is not None:
-        print("=== Inverse parameter comparison ===")
-        for row in inverse_summary["comparison"]:
-            actual_txt = "n/a" if row["actual"] is None else f"{row['actual']:.8g}"
-            err_txt = "n/a" if row["error"] is None else f"{row['error']:+.3e}"
-            print(f"{row['name']}: actual={actual_txt} estimated={row['estimated']:.8g} error={err_txt}")
+        print("Done.")
+        print(
+            "\n" + "=" * 120 + "\n"
+            "If you use this model in your research, please cite:\n"
+            "@article{iftakher2025physics,\n"
+            "  title={Physics-informed neural networks with hard nonlinear equality and inequality constraints},\n"
+            "  author={Iftakher, Ashfaq and Golder, Rahul and Roy, Bimol Nath and Hasan, MM Faruque},\n"
+            "  journal={Computers \\& Chemical Engineering},\n"
+            "  pages={109418},\n"
+            "  year={2025},\n"
+            "  publisher={Elsevier}\n"
+            "}\n"
+            "Contact: bimolnathroy@tamu.edu, rahulgolder8420@tamu.edu, hasan@tamu.edu\n"
+            + "=" * 120 + "\n"
+        )
+        print(f"run_dir = {output}")
+    else:
+        print(f"⏱️ Model training time (wall time) = {train_time:.4f} seconds")
+        print("✅ Model training finished!")
     return out

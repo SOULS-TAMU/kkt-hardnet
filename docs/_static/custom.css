@@ -1,0 +1,7 @@
+.scroll-box {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 1em;
+  background: #f9f9f9;
+}

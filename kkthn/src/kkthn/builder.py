@@ -4,15 +4,18 @@ import csv
 import json
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
 from jaxmodel import HighLevelNLPBuilder
 
 from .backbone import make_batched_mlp_apply
+from .native_projection import load_native_projection, load_or_compile_native_projection
 from .projection import ProjectionSettings, make_projection_layer
 from .string_problem import build_model_from_string_problem
 from .training import KKTTrainConfig, load_model_weights, train_kkt_hardnet
@@ -61,9 +64,35 @@ def _resolve_path(path: str | Path) -> Path:
     return Path(path).expanduser().resolve()
 
 
+def _fmt_time_sec(value) -> str:
+    if value is None:
+        return "N/A"
+    return f"{float(value):.2f} s"
+
+
+def _fmt_time_msec(value) -> str:
+    if value is None:
+        return "N/A"
+    return f"{1000.0 * float(value):.2f} ms"
+
+
+def _fmt_summary_value(value) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.4e}" if abs(value) < 1e-3 and value != 0.0 else f"{value:.4f}"
+    return str(value)
+
+
 def _as_expr(value) -> "Expression":
     if isinstance(value, Expression):
         return value
+    if "Constant" in globals() and isinstance(value, Constant):
+        arr = np.asarray(value.value)
+        if arr.ndim != 0:
+            raise TypeError(f"Constant '{value.name}' is not scalar.")
+        scalar = float(arr)
+        return Expression(lambda _ctx, v=scalar: jnp.asarray(v), repr(scalar))
     return Expression(lambda _ctx, v=float(value): jnp.asarray(v), repr(float(value)))
 
 
@@ -110,8 +139,10 @@ class _InferenceState:
     model: Any
     params: Any
     projection: Any
+    native_projection: Any | None
     data_n_x: int
     output_dir: str | None
+    predict_jax: Any | None = None
 
 
 class Expression:
@@ -176,6 +207,222 @@ class Expression:
         return Constraint(self - rhs, "eq", f"{self.text} == {rhs.text}")
 
 
+class VectorExpression:
+    def __init__(self, fn: Callable, text: str, *, size: int, components: list[Expression] | None = None) -> None:
+        self._fn = fn
+        self.text = str(text)
+        self.size = int(size)
+        self.components = list(components) if components is not None else None
+
+    def eval(self, ctx):
+        return self._fn(ctx)
+
+    def _component(self, idx: int) -> Expression:
+        if self.components is not None:
+            return self.components[idx]
+        return Expression(lambda ctx, vec=self, i=idx: vec.eval(ctx)[i], f"{self.text}[{idx}]")
+
+    def _binary(self, other, op, symbol: str) -> "VectorExpression":
+        rhs = _as_vector_expr(other, size=self.size)
+        components = [op(self._component(i), rhs._component(i)) for i in range(self.size)]
+        return VectorExpression(
+            lambda ctx, lhs=self, rhs=rhs: op(lhs.eval(ctx), rhs.eval(ctx)),
+            f"({self.text} {symbol} {rhs.text})",
+            size=self.size,
+            components=components,
+        )
+
+    def _rbinary(self, other, op, symbol: str) -> "VectorExpression":
+        lhs = _as_vector_expr(other, size=self.size)
+        components = [op(lhs._component(i), self._component(i)) for i in range(self.size)]
+        return VectorExpression(
+            lambda ctx, lhs=lhs, rhs=self: op(lhs.eval(ctx), rhs.eval(ctx)),
+            f"({lhs.text} {symbol} {self.text})",
+            size=self.size,
+            components=components,
+        )
+
+    def __add__(self, other):
+        return self._binary(other, lambda a, b: a + b, "+")
+
+    def __radd__(self, other):
+        return self._rbinary(other, lambda a, b: a + b, "+")
+
+    def __sub__(self, other):
+        return self._binary(other, lambda a, b: a - b, "-")
+
+    def __rsub__(self, other):
+        return self._rbinary(other, lambda a, b: a - b, "-")
+
+    def __mul__(self, other):
+        rhs = _as_expr(other)
+        return VectorExpression(
+            lambda ctx, lhs=self, rhs=rhs: lhs.eval(ctx) * rhs.eval(ctx),
+            f"({self.text} * {rhs.text})",
+            size=self.size,
+            components=[self._component(i) * rhs for i in range(self.size)],
+        )
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        rhs = _as_expr(other)
+        return VectorExpression(
+            lambda ctx, lhs=self, rhs=rhs: lhs.eval(ctx) / rhs.eval(ctx),
+            f"({self.text} / {rhs.text})",
+            size=self.size,
+            components=[self._component(i) / rhs for i in range(self.size)],
+        )
+
+    def __neg__(self):
+        return VectorExpression(
+            lambda ctx, expr=self: -expr.eval(ctx),
+            f"(-{self.text})",
+            size=self.size,
+            components=[-self._component(i) for i in range(self.size)],
+        )
+
+    def __getitem__(self, idx: int) -> Expression:
+        index = int(idx)
+        if index < 0:
+            index += self.size
+        if index < 0 or index >= self.size:
+            raise IndexError(index)
+        return self._component(index)
+
+    def _compare(self, other, kind: str, symbol: str):
+        rhs = _as_vector_expr(other, size=self.size)
+        constraints = []
+        for idx in range(self.size):
+            lhs_i = self._component(idx)
+            rhs_i = rhs._component(idx)
+            if symbol == "<=":
+                constraints.append(Constraint(lhs_i - rhs_i, kind, f"{lhs_i.text} <= {rhs_i.text}"))
+            elif symbol == ">=":
+                constraints.append(Constraint(rhs_i - lhs_i, kind, f"{lhs_i.text} >= {rhs_i.text}"))
+            else:
+                constraints.append(Constraint(lhs_i - rhs_i, kind, f"{lhs_i.text} == {rhs_i.text}"))
+        return constraints
+
+    def __le__(self, other):
+        return self._compare(other, "ineq", "<=")
+
+    def __ge__(self, other):
+        return self._compare(other, "ineq", ">=")
+
+    def __eq__(self, other):  # type: ignore[override]
+        return self._compare(other, "eq", "==")
+
+
+class Constant:
+    def __init__(self, name: str, value: Any) -> None:
+        self.name = str(name)
+        self.value = np.asarray(value)
+
+    def __array__(self, dtype=None):
+        return np.asarray(self.value, dtype=dtype)
+
+    def _expr(self):
+        arr = np.asarray(self.value)
+        if arr.ndim == 0:
+            return _as_expr(self)
+        if arr.ndim == 1:
+            return _constant_to_vector_expr(self)
+        raise TypeError(f"Constant '{self.name}' is not directly usable as a scalar/vector expression.")
+
+    def __add__(self, other):
+        return self._expr() + other
+
+    def __radd__(self, other):
+        return other + self._expr()
+
+    def __sub__(self, other):
+        return self._expr() - other
+
+    def __rsub__(self, other):
+        return other - self._expr()
+
+    def __mul__(self, other):
+        return self._expr() * other
+
+    def __rmul__(self, other):
+        return other * self._expr()
+
+    def __truediv__(self, other):
+        return self._expr() / other
+
+    def __rtruediv__(self, other):
+        return other / self._expr()
+
+    def __neg__(self):
+        return -self._expr()
+
+    def __le__(self, other):
+        return self._expr() <= other
+
+    def __ge__(self, other):
+        return self._expr() >= other
+
+    def __eq__(self, other):  # type: ignore[override]
+        return self._expr() == other
+
+    def __repr__(self) -> str:
+        return f"Constant(name={self.name!r}, shape={tuple(self.value.shape)!r})"
+
+
+def _constant_to_vector_expr(const: Constant) -> VectorExpression:
+    arr = np.asarray(const.value, dtype=np.float64).reshape(-1)
+    components = [Expression(lambda _ctx, v=float(value): jnp.asarray(v), repr(float(value))) for value in arr]
+    return VectorExpression(
+        lambda _ctx, value=arr: jnp.asarray(value),
+        const.name,
+        size=arr.size,
+        components=components,
+    )
+
+
+def _as_vector_expr(value, *, size: int | None = None) -> VectorExpression:
+    if isinstance(value, VectorExpression):
+        vector = value
+    elif isinstance(value, _SymbolNamespace):
+        vector = value.vector()
+    elif isinstance(value, Constant):
+        arr = np.asarray(value.value)
+        if arr.ndim == 0:
+            if size is None:
+                raise TypeError("Cannot broadcast a scalar constant to a vector without a target size.")
+            return _as_vector_expr(_as_expr(value), size=size)
+        if arr.ndim != 1:
+            raise TypeError(f"Constant '{value.name}' is not a vector.")
+        vector = _constant_to_vector_expr(value)
+    elif isinstance(value, Expression):
+        if size is None:
+            raise TypeError("Cannot broadcast a scalar expression to a vector without a target size.")
+        vector = VectorExpression(
+            lambda ctx, expr=value, count=int(size): jnp.broadcast_to(expr.eval(ctx), (count,)),
+            value.text,
+            size=int(size),
+            components=[value for _ in range(int(size))],
+        )
+    else:
+        arr = np.asarray(value)
+        if arr.ndim == 0:
+            if size is None:
+                raise TypeError("Cannot broadcast a scalar constant to a vector without a target size.")
+            return _as_vector_expr(_as_expr(float(arr)), size=size)
+        if arr.ndim != 1:
+            raise TypeError(f"Expected a vector expression, got {type(value).__name__}.")
+        vector = _constant_to_vector_expr(Constant("_literal", arr))
+    if size is not None:
+        expected = int(size)
+        if vector.size == 1 and expected != 1:
+            return _as_vector_expr(vector._component(0), size=expected)
+        if vector.size != expected:
+            raise ValueError(f"Vector shape mismatch: expected size {expected}, got {vector.size}.")
+    return vector
+
+
 class _SymbolNamespace:
     def __init__(self, builder: "KKTHardNet", kind: str) -> None:
         self._builder = builder
@@ -185,8 +432,36 @@ class _SymbolNamespace:
         return self[name]
 
     def __getitem__(self, name: str) -> Expression:
+        if isinstance(name, int):
+            names = {
+                "parameter": self._builder.parameter_names,
+                "variable": self._builder.variable_names,
+                "inverse_parameter": self._builder.inverse_parameter_names,
+            }[self._kind]
+            return self[names[int(name)]]
         self._builder._check_symbol(self._kind, name)
         return Expression(lambda ctx, kind=self._kind, n=name: ctx.value(kind, n), name)
+
+    def vector(self) -> VectorExpression:
+        names = {
+            "parameter": self._builder.parameter_names,
+            "variable": self._builder.variable_names,
+            "inverse_parameter": self._builder.inverse_parameter_names,
+        }[self._kind]
+        token = {
+            "parameter": "x",
+            "variable": "y",
+            "inverse_parameter": "theta",
+        }[self._kind]
+        components = [self[name] for name in names]
+        return VectorExpression(
+            lambda ctx, kind=self._kind, ordered=list(names): jnp.asarray(
+                [ctx.value(kind, name) for name in ordered]
+            ),
+            token,
+            size=len(names),
+            components=components,
+        )
 
 
 class ConstraintList:
@@ -195,6 +470,9 @@ class ConstraintList:
 
     def add(self, *constraints: Constraint) -> "ConstraintList":
         for constraint in constraints:
+            if isinstance(constraint, (list, tuple)):
+                self.add(*constraint)
+                continue
             if not isinstance(constraint, Constraint):
                 raise TypeError("constraints.add(...) expects expressions created with ==, <=, or >=.")
             self.items.append(constraint)
@@ -233,6 +511,9 @@ class KKTHardNet:
         self.objective: Expression | None = None
         self.constraints = ConstraintList()
         self.dataset_spec: DatasetSpec | None = None
+        self._constants: dict[str, np.ndarray] = {}
+        self._constant_counter = 0
+        self._extracted_problem_path: str | None = None
         self._train_config = self._normalize_train_config(train)
         self._projection_config = self._normalize_projection_config(projection)
         self._inference_state: _InferenceState | None = None
@@ -275,6 +556,42 @@ class KKTHardNet:
             self._inverse_initial_values.append(float(value))
         return self.inverse_parameter
 
+    def matrix(self, values) -> Constant:
+        """Register a constant matrix and return its wrapper."""
+        arr = np.asarray(values)
+        if arr.ndim != 2:
+            raise ValueError("matrix(...) expects a 2D array.")
+        return self._register_constant(values)
+
+    def vector(self, values) -> Constant:
+        """Register a constant vector and return its wrapper."""
+        arr = np.asarray(values)
+        if arr.ndim != 1:
+            raise ValueError("vector(...) expects a 1D array.")
+        return self._register_constant(values)
+
+    def tensor(self, values) -> Constant:
+        """Register a constant tensor and return its wrapper."""
+        arr = np.asarray(values)
+        if arr.ndim != 3:
+            raise ValueError("tensor(...) expects a 3D array.")
+        return self._register_constant(values)
+
+    def extract(self, path: str | Path) -> dict[str, Constant]:
+        """Load arrays from a ``.npz`` file and expose them as model attributes."""
+        target = _resolve_path(path)
+        if not target.exists():
+            raise FileNotFoundError(f"problem.npz not found: {target}")
+        loaded = np.load(target, allow_pickle=False)
+        extracted: dict[str, Constant] = {}
+        for key in loaded.files:
+            const = self._register_constant(loaded[key], name=key)
+            extracted[key] = const
+            setattr(self, key, const)
+        self._extracted_problem_path = str(target)
+        print(f"Loaded problem constants: {sorted(extracted.keys())}")
+        return extracted
+
     def dataset(self, *, parameters: str | Path, variables: str | Path | None = None) -> "KKTHardNet":
         self.dataset_spec = DatasetSpec(parameters_path=str(parameters), variables_path=None if variables is None else str(variables))
         return self
@@ -302,7 +619,7 @@ class KKTHardNet:
     def estimate(self, *, train: dict[str, Any] | KKTTrainConfig | None = None, projection: dict[str, Any] | ProjectionSettings | None = None) -> dict[str, Any]:
         return self._run_training("estimate", train=train, projection=projection)
 
-    def load(self, metadata_path: str | Path) -> "KKTHardNet":
+    def load(self, metadata_path: str | Path, *, verbose: bool | None = None) -> "KKTHardNet":
         metadata_file = _resolve_path(metadata_path)
         with open(metadata_file, "r", encoding="utf-8") as fh:
             payload = json.load(fh)
@@ -335,20 +652,52 @@ class KKTHardNet:
         weights_path = (metadata_file.parent / payload["artifacts"]["weights"]).resolve()
         params = load_model_weights(weights_path, payload["weights_manifest"])
         projection_layer = make_projection_layer(problem_model, settings=self._projection_settings(self._projection_config))
+        native_projection, native_manifest = load_or_compile_native_projection(
+            metadata_file.parent,
+            problem=payload["problem"],
+            settings=self._normalize_projection_config(self._projection_config),
+        )
         self._inference_state = _InferenceState(
             task=task,
             model=problem_model,
             params=params,
             projection=projection_layer,
+            native_projection=native_projection,
             data_n_x=len(self.parameter_names),
             output_dir=str(metadata_file.parent),
         )
+        # Build and cache jitted predictor
+        self._inference_state.predict_jax = self._make_jitted_predict()
+
+        # Warm-up (compile once here instead of first predict)
+        dummy = jnp.zeros(
+            (1, self._inference_state.data_n_x),
+            dtype=_dtype(self._train_config["dtype"]),
+        )
+        _ = self._inference_state.predict_jax(dummy).block_until_ready()
         self._metadata_path = str(metadata_file)
+        if verbose is None:
+            verbose = True
+        if verbose:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print("\n" + "=" * 120)
+            print("Model Loaded Successfully")
+            print("-" * 120)
+            print(f"Model Name   : {self.name}")
+            print(f"Location     : {metadata_file.parent}")
+            print(f"Time         : {now}")
+            print("=" * 120 + "\n")
         return self
 
-    def predict(self, values) -> np.ndarray:
+    def predict(self, values, *, projection_backend: str = "jax") -> np.ndarray:
         if self._inference_state is None:
             raise RuntimeError("Please train or load the model before calling predict().")
+        backend = str(projection_backend).strip().lower()
+        if backend not in {"auto", "jax", "native"}:
+            raise ValueError("projection_backend must be one of 'auto', 'jax', or 'native'.")
+        use_native = backend == "native" or (backend == "auto" and self._inference_state.native_projection is not None)
+        if backend == "native" and self._inference_state.native_projection is None:
+            raise RuntimeError("This run does not have a loadable native projection artifact.")
         data = np.asarray(values, dtype=np.float64)
         squeeze = data.ndim == 1
         if squeeze:
@@ -360,44 +709,389 @@ class KKTHardNet:
                 f"predict expected {self._inference_state.data_n_x} parameter values, got {data.shape[1]}."
             )
 
-        batched_mlp_apply = make_batched_mlp_apply()
         x_batch = jnp.asarray(data, dtype=_dtype(self._train_config["dtype"]))
-        params = self._inference_state.params
-        network = params["network"] if isinstance(params, dict) and "network" in params else params
-        y_hat = batched_mlp_apply(network, x_batch)
-        if isinstance(params, dict) and "inverse" in params:
-            theta = params["inverse"]
-            theta_batch = jnp.broadcast_to(theta, (x_batch.shape[0], theta.shape[0]))
-            x_aug = jnp.concatenate([x_batch, theta_batch], axis=1)
-        else:
-            x_aug = x_batch
-        y_proj = self._inference_state.projection.project(x_aug, y_hat)
+
+        if use_native:
+            batched_mlp_apply = make_batched_mlp_apply()
+            params = self._inference_state.params
+            network = params["network"] if isinstance(params, dict) and "network" in params else params
+            y_hat = batched_mlp_apply(network, x_batch)
+
+            if isinstance(params, dict) and "inverse" in params:
+                theta = params["inverse"]
+                theta_batch = jnp.broadcast_to(theta, (x_batch.shape[0], theta.shape[0]))
+                x_aug = jnp.concatenate([x_batch, theta_batch], axis=1)
+            else:
+                x_aug = x_batch
+
+            y_proj_np = self._inference_state.native_projection.project(
+                np.asarray(x_aug, dtype=np.float64),
+                np.asarray(y_hat, dtype=np.float64),
+            )
+            out = np.asarray(y_proj_np, dtype=np.float64)
+            return out[0] if squeeze else out
+
+        y_proj = self._inference_state.predict_jax(x_batch)
         out = np.asarray(y_proj, dtype=np.float64)
         return out[0] if squeeze else out
 
-    def sin(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.sin(e.eval(ctx)), f"sin({expr.text})")
+    def summary(self) -> dict[str, Any]:
+        """Print a compact summary of the current completed or loaded run."""
+        run_dir = self._run_dir()
+        summary_path = run_dir / "summary.json"
+        if not summary_path.exists():
+            raise RuntimeError(f"summary.json not found in {run_dir}. Train or load a completed run first.")
+        with open(summary_path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        payload = self._ensure_summary_inference_times(payload, summary_path)
 
-    def cos(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.cos(e.eval(ctx)), f"cos({expr.text})")
+        dims = payload.get("dims", {}) if isinstance(payload.get("dims"), dict) else {}
+        final = payload.get("final", {}) if isinstance(payload.get("final"), dict) else {}
+        dataset = payload.get("metadata", {}).get("dataset", {}) if isinstance(payload.get("metadata"), dict) else {}
+        cfg = payload.get("config", {}) if isinstance(payload.get("config"), dict) else {}
+        total_samples = dataset.get("num_samples")
+        train_samples = payload.get("train_samples")
+        val_samples = payload.get("val_samples")
+        if total_samples is not None and (train_samples is None or val_samples is None):
+            train_samples = int(float(total_samples) * float(cfg.get("train_frac", 0.8)))
+            val_samples = int(total_samples) - int(train_samples)
+        max_violation = payload.get("max_violation")
+        if max_violation is None and final:
+            max_violation = max(
+                abs(float(final.get("tr_eq", final.get("train_eq_l2", 0.0)))),
+                abs(float(final.get("tr_ineq", final.get("train_ineq_l2", 0.0)))),
+                abs(float(final.get("val_eq", final.get("val_eq_l2", 0.0)))),
+                abs(float(final.get("val_ineq", final.get("val_ineq_l2", 0.0)))),
+            )
+        rows = [
+            ("Model Name", payload.get("model_name", self.name)),
+            ("No. of Parameters", payload.get("num_parameters", dims.get("n_x", len(self.parameter_names)))),
+            ("No. of Variables", payload.get("num_variables", dims.get("n_y", len(self.variable_names)))),
+            ("No. of Equalities", payload.get("num_equalities", dims.get("n_eq"))),
+            ("No. of Inequalities", payload.get("num_inequalities", dims.get("n_ineq"))),
+            ("No. of Train Samples", train_samples),
+            ("No. of Validation Samples", val_samples),
+            ("Maximum Constraint Violation", max_violation),
+            ("Training Time", _fmt_time_sec(payload.get("training_wall_time_sec"))),
+            ("Est. JAX Single Inference Time", _fmt_time_msec(payload.get("estimated_jax_single_inference_time_sec"))),
+            # ("Est. Native Single Inference Time", _fmt_time_msec(payload.get("estimated_native_single_inference_time_sec"))),
+            ("Est. JAX Batch Inference Time", _fmt_time_msec(payload.get("estimated_jax_batch_inference_time_sec"))),
+        ]
+        print("📊 KKT-HardNet Summary")
+        print("-" * 60)
+        width = max(len(key) for key, _ in rows)
+        for key, value in rows:
+            print(f"{key:<{width}} : {_fmt_summary_value(value)}")
+        print("-" * 60)
+        print(
+            "Note: Inference time estimations are based on\n"
+            "microbenchmarking on the hardware used during\n"
+            "training and may vary across different hardware\n"
+            "and runtime conditions."
+        )
+        # return payload
 
-    def exp(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.exp(e.eval(ctx)), f"exp({expr.text})")
+    def _ensure_summary_inference_times(self, payload: dict[str, Any], summary_path: Path) -> dict[str, Any]:
+        if self._inference_state is None:
+            return payload
+        needs_jax = payload.get("estimated_jax_single_inference_time_sec") is None
+        needs_native = (
+            payload.get("estimated_native_single_inference_time_sec") is None
+            and self._inference_state.native_projection is not None
+        )
+        needs_batch = payload.get("estimated_jax_batch_inference_time_sec") is None
+        if not (needs_jax or needs_native or needs_batch):
+            return payload
+        params_path = summary_path.parent / "parameters.csv"
+        if not params_path.exists():
+            return payload
+        try:
+            X = self._read_csv_columns(params_path, self.parameter_names)
+        except Exception:
+            return payload
+        if X.size == 0:
+            return payload
+        samples = X[: min(50, X.shape[0])]
 
-    def log(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.log(e.eval(ctx)), f"log({expr.text})")
+        def time_single(backend: str):
+            self.predict(samples[0], projection_backend=backend)
+            start = time.perf_counter()
+            for row in samples:
+                self.predict(row, projection_backend=backend)
+            elapsed = time.perf_counter() - start
+            payload[f"estimated_{backend}_single_inference_time_sec"] = float(elapsed / max(1, samples.shape[0]))
+            payload[f"estimated_{backend}_single_total_time_sec"] = float(elapsed)
+            payload[f"estimated_{backend}_single_error"] = None
 
-    def sqrt(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.sqrt(e.eval(ctx)), f"sqrt({expr.text})")
+        try:
+            if needs_jax:
+                time_single("jax")
+        except Exception as exc:
+            payload["estimated_jax_single_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            if needs_native:
+                time_single("native")
+        except Exception as exc:
+            payload["estimated_native_single_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            if needs_batch:
+                cfg = payload.get("config", {}) if isinstance(payload.get("config"), dict) else {}
+                batch_size = int(max(1, cfg.get("batch_size", 32)))
+                if X.shape[0] < batch_size:
+                    reps = int(np.ceil(batch_size / X.shape[0]))
+                    batch = np.tile(X, (reps, 1))[:batch_size]
+                else:
+                    batch = X[:batch_size]
+                self.predict(batch, projection_backend="jax")
+                start = time.perf_counter()
+                for _ in range(50):
+                    self.predict(batch, projection_backend="jax")
+                elapsed = time.perf_counter() - start
+                payload["estimated_jax_batch_inference_time_sec"] = float(elapsed / 50.0)
+                payload["estimated_jax_batch_total_time_sec"] = float(elapsed)
+                payload["estimated_jax_batch_error"] = None
+        except Exception as exc:
+            payload["estimated_jax_batch_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            with open(summary_path, "w", encoding="utf-8") as fh:
+                json.dump(_json_safe(payload), fh, indent=2, sort_keys=True)
+        except Exception:
+            pass
+        return payload
 
-    def abs(self, expr) -> Expression:
-        expr = _as_expr(expr)
-        return Expression(lambda ctx, e=expr: jnp.abs(e.eval(ctx)), f"abs({expr.text})")
+    def plot_history(
+        self,
+        *,
+        show: bool = True,
+        save_dir: str | Path | None = None,
+        bg: str = "grey",
+    ):
+        """Plot and save MSE/loss and constraint violation histories."""
+        history = self._read_history()
+        epochs = history["epoch"]
+        tr_mse = self._history_column(history, "tr_mse")
+        val_mse = self._history_column(history, "val_mse")
+        tr_violation = np.maximum(self._history_column(history, "tr_eq"), self._history_column(history, "tr_ineq"))
+        val_violation = np.maximum(self._history_column(history, "val_eq"), self._history_column(history, "val_ineq"))
+        tr_violation = np.maximum(tr_violation, 1e-16)
+        val_violation = np.maximum(val_violation, 1e-16)
+
+        import os
+
+        os.environ.setdefault("MPLCONFIGDIR", "/tmp")
+        import matplotlib.pyplot as plt
+        from matplotlib import font_manager
+
+        font_names = {font.name for font in font_manager.fontManager.ttflist}
+        font_family = "Arial" if "Arial" in font_names else "DejaVu Sans"
+        bg_colors = {
+            "grey": "#E5E5E5",
+            "white": "#FFFFFF",
+        }
+        fig_bg = bg_colors.get(str(bg).lower(), "#E5E5E5")
+        style = "default" if str(bg).lower() == "white" else "ggplot"
+
+        with plt.style.context(style):
+            plt.rcParams.update(
+                {
+                    "font.family": font_family,
+                    "font.size": 32,
+                    "axes.titlesize": 32,
+                    "axes.labelsize": 24,
+                    "legend.fontsize": 24,
+                    "xtick.labelsize": 20,
+                    "ytick.labelsize": 20,
+                }
+            )
+            fig, axes = plt.subplots(1, 2, figsize=(20, 6), facecolor=fig_bg)
+            for ax in axes:
+                ax.set_facecolor(fig_bg)
+            axes[0].plot(epochs, tr_mse, linewidth=2, label="Train MSE")
+            axes[0].plot(epochs, val_mse, linewidth=2, linestyle="--", label="Validation MSE")
+            axes[0].set_xlabel("Epoch")
+            axes[0].set_ylabel("MSE")
+            axes[0].set_title("Loss")
+            axes[0].legend()
+            axes[0].grid(True, alpha=0.3)
+
+            axes[1].plot(epochs, tr_violation, linewidth=2, label="Train Violation")
+            axes[1].plot(epochs, val_violation, linewidth=2, linestyle="--", label="Validation Violation")
+            axes[1].set_xlabel("Epoch")
+            axes[1].set_ylabel("Max. Violation")
+            axes[1].set_title("Violation")
+            axes[1].set_yscale("log")
+            axes[1].legend()
+            axes[1].grid(True, alpha=0.3)
+
+            fig.tight_layout()
+            target = self._run_dir() if save_dir is None else _resolve_path(save_dir)
+            target.mkdir(parents=True, exist_ok=True)
+            fig.savefig(target / "training_history.png", dpi=600, bbox_inches="tight", facecolor=fig_bg)
+            if show:
+                plt.show()
+        # return fig, axes
+
+    def _run_dir(self) -> Path:
+        if self._inference_state is not None and self._inference_state.output_dir is not None:
+            return _resolve_path(self._inference_state.output_dir)
+        if self._metadata_path is not None:
+            return _resolve_path(self._metadata_path).parent
+        raise RuntimeError("No completed or loaded run is available.")
+
+    def _read_history(self) -> dict[str, np.ndarray]:
+        history_path = self._run_dir() / "history.csv"
+        if not history_path.exists():
+            raise RuntimeError(f"history.csv not found in {history_path.parent}.")
+        data = np.genfromtxt(history_path, delimiter=",", names=True, dtype=np.float64, encoding="utf-8")
+        if data.dtype.names is None:
+            raise RuntimeError(f"history.csv has no header: {history_path}")
+        return {name: np.atleast_1d(data[name]).astype(np.float64) for name in data.dtype.names}
+
+    @staticmethod
+    def _history_column(history: dict[str, np.ndarray], name: str) -> np.ndarray:
+        if name in history:
+            return history[name]
+        aliases = {
+            "tr_mse": ("tr_task_loss", "train_mse_y", "train_mse", "tr_loss", "train_loss", "train_objective"),
+            "val_mse": ("val_task_loss", "val_mse_y", "validation_mse", "val_loss", "validation_loss", "val_objective"),
+            "tr_loss": ("train_loss", "train_objective"),
+            "val_loss": ("validation_loss", "val_objective"),
+            "tr_eq": ("train_eq_l2", "train_eq_violation"),
+            "tr_ineq": ("train_ineq_l2", "train_ineq_violation"),
+            "val_eq": ("val_eq_l2", "val_eq_violation"),
+            "val_ineq": ("val_ineq_l2", "val_ineq_violation"),
+        }
+        for alias in aliases.get(name, ()):
+            if alias in history:
+                return history[alias]
+        if "epoch" in history:
+            return np.zeros_like(history["epoch"], dtype=np.float64)
+        raise KeyError(name)
+
+    def lin(self, matrix, expr):
+        """Form ``A @ expr`` from an extracted or registered matrix/vector."""
+        const = self._ensure_constant(matrix)
+        vector = _as_vector_expr(expr)
+        arr = np.asarray(const.value, dtype=np.float64)
+        if arr.ndim == 1:
+            if arr.shape[0] != vector.size:
+                raise ValueError(f"lin(...) dimension mismatch: {arr.shape[0]} vs {vector.size}.")
+            return self._linear_combination(arr, vector)
+        if arr.ndim == 2:
+            if arr.shape[1] != vector.size:
+                raise ValueError(f"lin(...) dimension mismatch: {arr.shape[1]} vs {vector.size}.")
+            components = [self._linear_combination(row, vector) for row in arr]
+            return VectorExpression(
+                lambda ctx, a=arr, vec=vector: jnp.asarray(a) @ jnp.asarray(vec.eval(ctx)),
+                f"lin({const.name}, {vector.text})",
+                size=arr.shape[0],
+                components=components,
+            )
+        raise ValueError("lin(...) expects a 1D or 2D constant.")
+
+    def batch_lin(self, matrix, expr):
+        """Form a vector expression from a 2D matrix and vector expression."""
+        return self.lin(matrix, expr)
+
+    def quad(self, matrix, expr) -> Expression:
+        """Form ``expr.T @ Q @ expr``."""
+        const = self._ensure_constant(matrix)
+        vector = _as_vector_expr(expr)
+        arr = np.asarray(const.value, dtype=np.float64)
+        if arr.ndim != 2:
+            raise ValueError("quad(...) expects a 2D constant.")
+        if arr.shape[0] != vector.size or arr.shape[1] != vector.size:
+            raise ValueError(f"quad(...) expects shape ({vector.size}, {vector.size}), got {arr.shape}.")
+        terms: list[Expression] = []
+        for i in range(vector.size):
+            for j in range(vector.size):
+                coeff = float(arr[i, j])
+                if coeff != 0.0:
+                    terms.append(coeff * vector[i] * vector[j])
+        return self._sum_expressions(terms, text_if_empty="0.0")
+
+    def batch_quad(self, tensor, expr) -> VectorExpression:
+        """Form batched quadratic expressions from a rank-3 tensor."""
+        const = self._ensure_constant(tensor)
+        vector = _as_vector_expr(expr)
+        arr = np.asarray(const.value, dtype=np.float64)
+        if arr.ndim != 3:
+            raise ValueError("batch_quad(...) expects a 3D constant.")
+        if arr.shape[1] != vector.size or arr.shape[2] != vector.size:
+            raise ValueError(f"batch_quad(...) expects trailing shape ({vector.size}, {vector.size}), got {arr.shape}.")
+        components = [self.quad(Constant(f"{const.name}_{idx}", arr[idx]), vector) for idx in range(arr.shape[0])]
+        return VectorExpression(
+            lambda ctx, a=arr, vec=vector: jnp.einsum("mij,i,j->m", jnp.asarray(a), jnp.ravel(vec.eval(ctx)), jnp.ravel(vec.eval(ctx))),
+            f"batch_quad({const.name}, {vector.text})",
+            size=arr.shape[0],
+            components=components,
+        )
+
+    def batch_exp(self, expr) -> VectorExpression:
+        return self.exp(expr)
+
+    def sin(self, expr):
+        return self._elementwise(expr, jnp.sin, "sin")
+
+    def cos(self, expr):
+        return self._elementwise(expr, jnp.cos, "cos")
+
+    def exp(self, expr):
+        return self._elementwise(expr, jnp.exp, "exp")
+
+    def log(self, expr):
+        return self._elementwise(expr, jnp.log, "log")
+
+    def sqrt(self, expr):
+        return self._elementwise(expr, jnp.sqrt, "sqrt")
+
+    def abs(self, expr):
+        return self._elementwise(expr, jnp.abs, "abs")
+
+    def _elementwise(self, expr, fn, name: str):
+        if isinstance(expr, (VectorExpression, _SymbolNamespace, Constant)) and not (
+            isinstance(expr, Constant) and np.asarray(expr.value).ndim == 0
+        ):
+            vector = _as_vector_expr(expr)
+            components = [self._elementwise(vector[idx], fn, name) for idx in range(vector.size)]
+            return VectorExpression(
+                lambda ctx, e=vector: fn(e.eval(ctx)),
+                f"{name}({vector.text})",
+                size=vector.size,
+                components=components,
+            )
+        scalar = _as_expr(expr)
+        return Expression(lambda ctx, e=scalar: fn(e.eval(ctx)), f"{name}({scalar.text})")
+
+    def _register_constant(self, value, *, name: str | None = None) -> Constant:
+        if name is None:
+            name = f"_const_{self._constant_counter}"
+            self._constant_counter += 1
+        arr = np.asarray(value)
+        const = Constant(str(name), arr)
+        self._constants[str(name)] = arr
+        return const
+
+    def _ensure_constant(self, value) -> Constant:
+        if isinstance(value, Constant):
+            return value
+        return self._register_constant(value)
+
+    def _sum_expressions(self, terms: list[Expression], *, text_if_empty: str) -> Expression:
+        if not terms:
+            return Expression(lambda _ctx: jnp.asarray(0.0), text_if_empty)
+        out = terms[0]
+        for term in terms[1:]:
+            out = out + term
+        return out
+
+    def _linear_combination(self, coeffs: np.ndarray, vector: VectorExpression) -> Expression:
+        terms: list[Expression] = []
+        for idx, coeff in enumerate(np.asarray(coeffs, dtype=np.float64).reshape(-1)):
+            scalar = float(coeff)
+            if scalar != 0.0:
+                terms.append(scalar * vector[idx])
+        return self._sum_expressions(terms, text_if_empty="0.0")
 
     def _check_symbol(self, kind: str, name: str) -> None:
         pools = {
@@ -411,8 +1105,8 @@ class KKTHardNet:
     def _normalize_train_config(self, config: dict[str, Any] | KKTTrainConfig | None) -> dict[str, Any]:
         if config is None:
             return {
-                "epochs": 2,
-                "batch_size": 8,
+                "epochs": 1200,
+                "batch_size": 32,
                 "learning_rate": 1e-3,
                 "train_frac": 0.8,
                 "hidden_size": 64,
@@ -421,14 +1115,17 @@ class KKTHardNet:
                 "dtype": "float64",
                 "print_every": 1,
                 "drop_last": False,
+                "eta": None,
+                "epoch_mlp": None,
+                "cons_alpha": 0.0,
             }
         if isinstance(config, KKTTrainConfig):
             out = asdict(config)
             out.pop("projection", None)
             return out
         out = dict(config)
-        out.setdefault("epochs", 2)
-        out.setdefault("batch_size", 8)
+        out.setdefault("epochs", 1200)
+        out.setdefault("batch_size", 32)
         out.setdefault("learning_rate", 1e-3)
         out.setdefault("train_frac", 0.8)
         out.setdefault("hidden_size", 64)
@@ -437,6 +1134,9 @@ class KKTHardNet:
         out.setdefault("dtype", "float64")
         out.setdefault("print_every", 1)
         out.setdefault("drop_last", False)
+        out.setdefault("eta", None)
+        out.setdefault("epoch_mlp", None)
+        out.setdefault("cons_alpha", 0.0)
         return out
 
     def _normalize_projection_config(self, config: dict[str, Any] | ProjectionSettings | None) -> dict[str, Any]:
@@ -479,6 +1179,37 @@ class KKTHardNet:
             armijo_max_steps=backtrack_iters,
             backward_reg=float(config.get("backward_reg", defaults.backward_reg)),
         )
+    
+    def _make_jitted_predict(self):
+        state = self._inference_state
+        if state is None:
+            return None
+
+        params = state.params
+        projection = state.projection
+        dtype = _dtype(self._train_config["dtype"])
+        batched_mlp_apply = make_batched_mlp_apply()
+
+        inverse_mode = isinstance(params, dict) and "inverse" in params
+
+        def network_tree(params_in):
+            return params_in["network"] if inverse_mode else params_in
+
+        def augmented_x(params_in, x_batch):
+            if not inverse_mode:
+                return x_batch
+            theta = params_in["inverse"]
+            theta_batch = jnp.broadcast_to(theta, (x_batch.shape[0], theta.shape[0]))
+            return jnp.concatenate([x_batch, theta_batch], axis=1)
+
+        @jax.jit
+        def predict_jax(x_batch):
+            x_batch = jnp.asarray(x_batch, dtype=dtype)
+            y_hat = batched_mlp_apply(network_tree(params), x_batch)
+            x_aug = augmented_x(params, x_batch)
+            return projection.project(x_aug, y_hat)
+
+        return predict_jax
 
     def _config_dataclass(
         self,
@@ -501,6 +1232,9 @@ class KKTHardNet:
             dtype=str(train_cfg["dtype"]),
             print_every=max(1, int(train_cfg["print_every"])),
             drop_last=bool(train_cfg.get("drop_last", False)),
+            eta=None if train_cfg.get("eta") is None else float(train_cfg["eta"]),
+            epoch_mlp=None if train_cfg.get("epoch_mlp") is None else int(train_cfg["epoch_mlp"]),
+            cons_alpha=float(train_cfg.get("cons_alpha", 0.0)),
             projection=self._projection_settings(proj_cfg),
         )
 
@@ -721,6 +1455,7 @@ class KKTHardNet:
                 "summary": "summary.json",
                 "history": "history.csv",
                 "predictions": "predictions.csv",
+                "native_projection_manifest": "projection_native.json",
             },
         }
         if metadata_payload["weights_manifest"] is None:
@@ -740,6 +1475,7 @@ class KKTHardNet:
             model=model,
             params=params,
             projection=projection_layer,
+            native_projection=load_native_projection(run_dir),
             data_n_x=len(self.parameter_names),
             output_dir=str(run_dir),
         )

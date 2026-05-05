@@ -1,0 +1,287 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kkthn.string_problem &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">kkthn.string_problem</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for kkthn.string_problem</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="n">jax</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">&quot;jax_enable_x64&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">jaxmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">HighLevelNLPBuilder</span>  <span class="c1"># noqa: E402</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_env</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;jnp&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="p">,</span>
+        <span class="s2">&quot;sin&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">,</span>
+        <span class="s2">&quot;cos&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">,</span>
+        <span class="s2">&quot;tan&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">tan</span><span class="p">,</span>
+        <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">,</span>
+        <span class="s2">&quot;log&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
+        <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">,</span>
+        <span class="s2">&quot;abs&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">,</span>
+        <span class="s2">&quot;maximum&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">,</span>
+        <span class="s2">&quot;minimum&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">,</span>
+        <span class="s2">&quot;pi&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="parse_constraint">
+<a class="viewcode-back" href="../../api/core/kkthn/string_problem.html#kkthn.string_problem.parse_constraint">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_constraint</span><span class="p">(</span><span class="n">constraint</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">constraint</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="s2">&quot;==&quot;</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+        <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;==&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">left</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">) - (</span><span class="si">{</span><span class="n">right</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="s2">&quot;eq&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;&lt;=&quot;</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+        <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">left</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">) - (</span><span class="si">{</span><span class="n">right</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="s2">&quot;ineq&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;&gt;=&quot;</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+        <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&gt;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">right</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">) - (</span><span class="si">{</span><span class="n">left</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="s2">&quot;ineq&quot;</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported constraint format: </span><span class="si">{</span><span class="n">constraint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_scalar_expr_fn">
+<a class="viewcode-back" href="../../api/core/kkthn/string_problem.html#kkthn.string_problem.make_scalar_expr_fn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_scalar_expr_fn</span><span class="p">(</span>
+    <span class="n">expr</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">parameter_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">variable_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">inverse_parameter_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">inverse_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">train_inverse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+    <span class="n">env0</span> <span class="o">=</span> <span class="n">_safe_env</span><span class="p">()</span>
+    <span class="n">inv_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inverse_parameter_names</span> <span class="ow">or</span> <span class="p">[])</span>
+    <span class="n">inv_values</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([]</span> <span class="k">if</span> <span class="n">inverse_values</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inverse_values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">forward_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameter_names</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">env0</span><span class="p">)</span>
+        <span class="n">y_vec</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">x_vec</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">variable_names</span><span class="p">):</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_vec</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameter_names</span><span class="p">):</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_vec</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inv_names</span><span class="p">):</span>
+            <span class="n">env</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_vec</span><span class="p">[</span><span class="n">forward_dim</span> <span class="o">+</span> <span class="n">idx</span><span class="p">]</span> <span class="k">if</span> <span class="n">train_inverse</span> <span class="k">else</span> <span class="n">inv_values</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;__builtins__&quot;</span><span class="p">:</span> <span class="p">{}},</span> <span class="n">env</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">f</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_objective_expr</span><span class="p">(</span><span class="n">problem</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">expr</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;objective&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">expr</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">expr</span>
+    <span class="n">terms</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">**2&quot;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">problem</span><span class="p">[</span><span class="s2">&quot;variables&quot;</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="s2">&quot;0.5*(&quot;</span> <span class="o">+</span> <span class="s2">&quot; + &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">terms</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+
+
+<div class="viewcode-block" id="build_model_from_string_problem">
+<a class="viewcode-back" href="../../api/core/kkthn/string_problem.html#kkthn.string_problem.build_model_from_string_problem">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_model_from_string_problem</span><span class="p">(</span>
+    <span class="n">problem</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
+    <span class="n">inverse_parameter_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">inverse_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">train_inverse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">parameter_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">problem</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">])</span>
+    <span class="n">variable_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">problem</span><span class="p">[</span><span class="s2">&quot;variables&quot;</span><span class="p">])</span>
+    <span class="n">inv_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;inverse_parameters&quot;</span><span class="p">,</span> <span class="n">inverse_parameter_names</span> <span class="ow">or</span> <span class="p">[]))</span>
+    <span class="n">constraints</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;constraints&quot;</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="n">objective_expr</span> <span class="o">=</span> <span class="n">_objective_expr</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+    <span class="n">total_parameter_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameter_names</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inv_names</span><span class="p">)</span> <span class="k">if</span> <span class="n">train_inverse</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">eq_exprs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ineq_exprs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">constraint</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
+        <span class="n">expr</span><span class="p">,</span> <span class="n">sense</span> <span class="o">=</span> <span class="n">parse_constraint</span><span class="p">(</span><span class="n">constraint</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sense</span> <span class="o">==</span> <span class="s2">&quot;eq&quot;</span><span class="p">:</span>
+            <span class="n">eq_exprs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ineq_exprs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+
+    <span class="n">eq_fns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">make_scalar_expr_fn</span><span class="p">(</span>
+            <span class="n">expr</span><span class="p">,</span>
+            <span class="n">parameter_names</span><span class="p">,</span>
+            <span class="n">variable_names</span><span class="p">,</span>
+            <span class="n">inv_names</span><span class="p">,</span>
+            <span class="n">inverse_values</span><span class="o">=</span><span class="n">inverse_values</span><span class="p">,</span>
+            <span class="n">train_inverse</span><span class="o">=</span><span class="n">train_inverse</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">expr</span> <span class="ow">in</span> <span class="n">eq_exprs</span>
+    <span class="p">]</span>
+    <span class="n">ineq_fns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">make_scalar_expr_fn</span><span class="p">(</span>
+            <span class="n">expr</span><span class="p">,</span>
+            <span class="n">parameter_names</span><span class="p">,</span>
+            <span class="n">variable_names</span><span class="p">,</span>
+            <span class="n">inv_names</span><span class="p">,</span>
+            <span class="n">inverse_values</span><span class="o">=</span><span class="n">inverse_values</span><span class="p">,</span>
+            <span class="n">train_inverse</span><span class="o">=</span><span class="n">train_inverse</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">expr</span> <span class="ow">in</span> <span class="n">ineq_exprs</span>
+    <span class="p">]</span>
+    <span class="n">obj_fn</span> <span class="o">=</span> <span class="n">make_scalar_expr_fn</span><span class="p">(</span>
+        <span class="n">objective_expr</span><span class="p">,</span>
+        <span class="n">parameter_names</span><span class="p">,</span>
+        <span class="n">variable_names</span><span class="p">,</span>
+        <span class="n">inv_names</span><span class="p">,</span>
+        <span class="n">inverse_values</span><span class="o">=</span><span class="n">inverse_values</span><span class="p">,</span>
+        <span class="n">train_inverse</span><span class="o">=</span><span class="n">train_inverse</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">objective</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vars_dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj_fn</span><span class="p">(</span><span class="n">vars_dict</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">])</span>
+
+    <span class="n">builder</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">HighLevelNLPBuilder</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">total_parameter_dim</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable_names</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">set_objective</span><span class="p">(</span><span class="n">objective</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">eq_fns</span><span class="p">:</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">eq_block</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vars_dict</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">vars_dict</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">f</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">eq_fns</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">add_nonlinear_equality</span><span class="p">(</span><span class="n">eq_block</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;string_eq_block&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ineq_fns</span><span class="p">:</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">ineq_block</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">vars_dict</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">vars_dict</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">f</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">ineq_fns</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">add_nonlinear_inequality</span><span class="p">(</span><span class="n">ineq_block</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;string_ineq_block&quot;</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">example_params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">total_parameter_dim</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)},</span> <span class="n">jit_compile</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="p">{</span>
+        <span class="s2">&quot;eq_exprs&quot;</span><span class="p">:</span> <span class="n">eq_exprs</span><span class="p">,</span>
+        <span class="s2">&quot;ineq_exprs&quot;</span><span class="p">:</span> <span class="n">ineq_exprs</span><span class="p">,</span>
+        <span class="s2">&quot;objective_expr&quot;</span><span class="p">:</span> <span class="n">objective_expr</span><span class="p">,</span>
+        <span class="s2">&quot;parameter_names&quot;</span><span class="p">:</span> <span class="n">parameter_names</span><span class="p">,</span>
+        <span class="s2">&quot;inverse_parameter_names&quot;</span><span class="p">:</span> <span class="n">inv_names</span><span class="p">,</span>
+        <span class="s2">&quot;total_parameter_dim&quot;</span><span class="p">:</span> <span class="n">total_parameter_dim</span><span class="p">,</span>
+        <span class="s2">&quot;train_inverse&quot;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">train_inverse</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

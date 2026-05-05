@@ -1,0 +1,143 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jaxmodel.autodiff &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jaxmodel.autodiff</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jaxmodel.autodiff</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+
+<div class="viewcode-block" id="build_grad_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/autodiff.html#jaxmodel.autodiff.build_grad_y_objective">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_grad_y_objective</span><span class="p">(</span><span class="n">obj_flat</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">obj_flat</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_hess_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/autodiff.html#jaxmodel.autodiff.build_hess_y_objective">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_hess_y_objective</span><span class="p">(</span><span class="n">obj_flat</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">hessian</span><span class="p">(</span><span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">obj_flat</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_diag_hess_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/autodiff.html#jaxmodel.autodiff.build_diag_hess_y_objective">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_diag_hess_y_objective</span><span class="p">(</span><span class="n">grad_fun</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diag_hess</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">jvp_fun</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">linearize</span><span class="p">(</span><span class="k">lambda</span> <span class="n">yy</span><span class="p">:</span> <span class="n">grad_fun</span><span class="p">(</span><span class="n">yy</span><span class="p">,</span> <span class="n">params</span><span class="p">),</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jvp_fun</span><span class="p">)(</span><span class="n">basis</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cols</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">diag_hess</span></div>
+
+
+
+<div class="viewcode-block" id="build_jac_y_vector_fun">
+<a class="viewcode-back" href="../../api/core/jaxmodel/autodiff.html#jaxmodel.autodiff.build_jac_y_vector_fun">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_jac_y_vector_fun</span><span class="p">(</span><span class="n">vec_fun</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacrev</span><span class="p">(</span><span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">vec_fun</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

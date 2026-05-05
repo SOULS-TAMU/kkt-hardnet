@@ -1,0 +1,363 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kkthn.projection &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">kkthn.projection</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for kkthn.projection</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jax</span><span class="w"> </span><span class="kn">import</span> <span class="n">lax</span>
+
+<span class="n">jax</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">&quot;jax_enable_x64&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ProjectionSettings">
+<a class="viewcode-back" href="../../api/package/hyperparameters.html#kkthn.projection.ProjectionSettings">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProjectionSettings</span><span class="p">:</span>
+    <span class="n">fb_eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="n">gn_max_iters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">gn_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span>
+    <span class="n">gn_reg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span>
+    <span class="n">newton_step_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">armijo_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">armijo_beta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">max_backtrack_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">armijo_max_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">backward_reg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span></div>
+
+
+
+<div class="viewcode-block" id="ProjectionLayer">
+<a class="viewcode-back" href="../../api/core/kkthn/projection.html#kkthn.projection.ProjectionLayer">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProjectionLayer</span><span class="p">:</span>
+    <span class="n">project</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">project_single</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">solve_single</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">eq_constraints</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">ineq_constraints</span><span class="p">:</span> <span class="n">Callable</span>
+    <span class="n">dims</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">ProjectionSettings</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fb</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mu</span> <span class="o">*</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="n">s</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span> <span class="o">-</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">s</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_param_dim</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">parameter_spec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;JaxNLPModel must define a parameter spec.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">parameter_spec</span><span class="o">.</span><span class="n">shapes</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2">&#39; is not present in the model.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameter_spec</span><span class="o">.</span><span class="n">shapes</span><span class="p">[</span><span class="n">param_name</span><span class="p">]))</span>
+
+
+<div class="viewcode-block" id="make_projection_layer">
+<a class="viewcode-back" href="../../api/core/kkthn/projection.html#kkthn.projection.make_projection_layer">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_projection_layer</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">ProjectionSettings</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProjectionLayer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the KKT-HardNet projection layer from a JaxNLPModel.</span>
+
+<span class="sd">    The layer solves, per sample,</span>
+
+<span class="sd">        min_y 0.5 ||y - y_hat||^2</span>
+<span class="sd">        s.t.  h(y, x) = 0, g(y, x) &lt;= 0, lb(x) &lt;= y &lt;= ub(x)</span>
+
+<span class="sd">    Inequalities and bounds are folded into one slack/complementarity block.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">settings</span> <span class="ow">or</span> <span class="n">ProjectionSettings</span><span class="p">()</span>
+    <span class="n">ny</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">var_spec</span><span class="o">.</span><span class="n">total_size</span><span class="p">)</span>
+    <span class="n">nx</span> <span class="o">=</span> <span class="n">_param_dim</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nx</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">y0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ny</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">params0</span> <span class="o">=</span> <span class="p">{</span><span class="n">param_name</span><span class="p">:</span> <span class="n">x0</span><span class="p">}</span>
+    <span class="n">ne</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">eq_residual</span><span class="p">(</span><span class="n">params0</span><span class="p">,</span> <span class="n">y0</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">raw_ni</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">ineq_residual</span><span class="p">(</span><span class="n">params0</span><span class="p">,</span> <span class="n">y0</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">has_lb</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">has_ub</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">ni</span> <span class="o">=</span> <span class="n">raw_ni</span> <span class="o">+</span> <span class="p">(</span><span class="n">ny</span> <span class="k">if</span> <span class="n">has_lb</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">ny</span> <span class="k">if</span> <span class="n">has_ub</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">nz</span> <span class="o">=</span> <span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span> <span class="o">+</span> <span class="n">ni</span> <span class="o">+</span> <span class="n">ni</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">make_params</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">param_name</span><span class="p">:</span> <span class="n">x</span><span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">eq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">eq_residual</span><span class="p">(</span><span class="n">make_params</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">ineq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">make_params</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">ineq_residual</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">raw_ni</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_lb</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">lower_bounds</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_ub</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">model</span><span class="o">.</span><span class="n">upper_bounds</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">0</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">parts</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">pack_z</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">s</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">unpack_z</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">z</span><span class="p">[:</span><span class="n">ny</span><span class="p">]</span>
+        <span class="n">lam</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">ny</span> <span class="p">:</span> <span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span><span class="p">]</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span> <span class="p">:</span> <span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span> <span class="o">+</span> <span class="n">ni</span><span class="p">]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span> <span class="o">+</span> <span class="n">ni</span> <span class="p">:</span> <span class="n">ny</span> <span class="o">+</span> <span class="n">ne</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">ni</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">s</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_z</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y_hat</span>
+        <span class="n">lam</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ne</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y_hat</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ni</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y_hat</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">gi0</span> <span class="o">=</span> <span class="n">ineq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="o">-</span><span class="n">gi0</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">)</span> <span class="k">if</span> <span class="n">ni</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">0</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y_hat</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pack_z</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_kkt_residual</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">y</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">unpack_z</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">lagrangian</span><span class="p">(</span><span class="n">yy</span><span class="p">):</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">yy</span> <span class="o">-</span> <span class="n">y_hat</span><span class="p">,</span> <span class="n">yy</span> <span class="o">-</span> <span class="n">y_hat</span><span class="p">)</span>
+            <span class="n">eq_term</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">lam</span><span class="p">,</span> <span class="n">eq_fun</span><span class="p">(</span><span class="n">yy</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span> <span class="k">if</span> <span class="n">ne</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">yy</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">ineq_term</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">ineq_fun</span><span class="p">(</span><span class="n">yy</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span> <span class="k">if</span> <span class="n">ni</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">yy</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">obj</span> <span class="o">+</span> <span class="n">eq_term</span> <span class="o">+</span> <span class="n">ineq_term</span>
+
+        <span class="n">grad_y</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">lagrangian</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">ce</span> <span class="o">=</span> <span class="n">eq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="n">gi</span> <span class="o">=</span> <span class="n">ineq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="n">_fb</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">fb_eps</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">grad_y</span><span class="p">,</span> <span class="n">ce</span><span class="p">,</span> <span class="n">gi</span> <span class="o">+</span> <span class="n">s</span><span class="p">,</span> <span class="n">comp</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">kkt_residual</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">_kkt_residual</span><span class="p">)</span>
+    <span class="n">kkt_jac_z</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">_kkt_residual</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">kkt_jac_x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">_kkt_residual</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">kkt_jac_yhat</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">_kkt_residual</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">merit</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">kkt_residual</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gn_direction</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">kkt_residual</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">kkt_jac_z</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">JTJ</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">J</span> <span class="o">+</span> <span class="n">cfg</span><span class="o">.</span><span class="n">gn_reg</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">nz</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">z</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">J</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">r</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">JTJ</span><span class="p">,</span> <span class="n">rhs</span><span class="p">),</span> <span class="n">r</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">ProjectionSettings</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">max_backtrack_iter</span> <span class="o">!=</span> <span class="n">defaults</span><span class="o">.</span><span class="n">max_backtrack_iter</span><span class="p">:</span>
+        <span class="n">backtrack_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_backtrack_iter</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">cfg</span><span class="o">.</span><span class="n">armijo_max_steps</span> <span class="o">!=</span> <span class="n">defaults</span><span class="o">.</span><span class="n">armijo_max_steps</span><span class="p">:</span>
+        <span class="n">backtrack_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">armijo_max_steps</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">backtrack_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">defaults</span><span class="o">.</span><span class="n">max_backtrack_iter</span><span class="p">)</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">armijo_line_search</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">phi0</span> <span class="o">=</span> <span class="n">merit</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">r0</span> <span class="o">=</span> <span class="n">kkt_residual</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">J0</span> <span class="o">=</span> <span class="n">kkt_jac_z</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">grad_phi_dot_d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">J0</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">r0</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="n">init_step</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">newton_step_length</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">z</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">backtrack_steps</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">init_step</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">body_fun</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+            <span class="n">step</span><span class="p">,</span> <span class="n">accepted</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="n">phi_trial</span> <span class="o">=</span> <span class="n">merit</span><span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">step</span> <span class="o">*</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+            <span class="n">ok</span> <span class="o">=</span> <span class="n">phi_trial</span> <span class="o">&lt;=</span> <span class="n">phi0</span> <span class="o">+</span> <span class="n">cfg</span><span class="o">.</span><span class="n">armijo_alpha</span> <span class="o">*</span> <span class="n">step</span> <span class="o">*</span> <span class="n">grad_phi_dot_d</span>
+            <span class="n">new_step</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ok</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">armijo_beta</span> <span class="o">*</span> <span class="n">step</span><span class="p">))</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">new_step</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="n">ok</span><span class="p">)),</span> <span class="kc">None</span>
+
+        <span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
+            <span class="n">body_fun</span><span class="p">,</span>
+            <span class="n">init</span><span class="o">=</span><span class="p">(</span><span class="n">init_step</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="kc">False</span><span class="p">)),</span>
+            <span class="n">xs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">length</span><span class="o">=</span><span class="n">backtrack_steps</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">step</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve_single</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">z0</span> <span class="o">=</span> <span class="n">init_z</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">r0</span> <span class="o">=</span> <span class="n">kkt_residual</span><span class="p">(</span><span class="n">z0</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">res0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">r0</span><span class="p">,</span> <span class="nb">ord</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">cond_fun</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+            <span class="n">k</span><span class="p">,</span> <span class="n">_z</span><span class="p">,</span> <span class="n">res_norm</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">k</span> <span class="o">&lt;</span> <span class="n">cfg</span><span class="o">.</span><span class="n">gn_max_iters</span><span class="p">,</span> <span class="n">res_norm</span> <span class="o">&gt;</span> <span class="n">cfg</span><span class="o">.</span><span class="n">gn_tol</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">body_fun</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+            <span class="n">k</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">_res_norm</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="n">d</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gn_direction</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">armijo_line_search</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+            <span class="n">z_new</span> <span class="o">=</span> <span class="n">z</span> <span class="o">+</span> <span class="n">step</span> <span class="o">*</span> <span class="n">d</span>
+            <span class="n">r_new</span> <span class="o">=</span> <span class="n">kkt_residual</span><span class="p">(</span><span class="n">z_new</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">z_new</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">r_new</span><span class="p">,</span> <span class="nb">ord</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lax</span><span class="o">.</span><span class="n">while_loop</span><span class="p">(</span><span class="n">cond_fun</span><span class="p">,</span> <span class="n">body_fun</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">z0</span><span class="p">,</span> <span class="n">res0</span><span class="p">))</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">custom_vjp</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">project_single</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">_iters</span><span class="p">,</span> <span class="n">z_star</span><span class="p">,</span> <span class="n">_res</span> <span class="o">=</span> <span class="n">solve_single</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">y_star</span><span class="p">,</span> <span class="n">_lam</span><span class="p">,</span> <span class="n">_mu</span><span class="p">,</span> <span class="n">_s</span> <span class="o">=</span> <span class="n">unpack_z</span><span class="p">(</span><span class="n">z_star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_star</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">project_single_fwd</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">):</span>
+        <span class="n">iters</span><span class="p">,</span> <span class="n">z_star</span><span class="p">,</span> <span class="n">res_norm</span> <span class="o">=</span> <span class="n">solve_single</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">y_star</span><span class="p">,</span> <span class="n">_lam</span><span class="p">,</span> <span class="n">_mu</span><span class="p">,</span> <span class="n">_s</span> <span class="o">=</span> <span class="n">unpack_z</span><span class="p">(</span><span class="n">z_star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_star</span><span class="p">,</span> <span class="p">(</span><span class="n">z_star</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">,</span> <span class="n">iters</span><span class="p">,</span> <span class="n">res_norm</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">project_single_bwd</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">g_y</span><span class="p">):</span>
+        <span class="n">z_star</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">,</span> <span class="n">_iters</span><span class="p">,</span> <span class="n">_res_norm</span> <span class="o">=</span> <span class="n">res</span>
+        <span class="n">Jz</span> <span class="o">=</span> <span class="n">kkt_jac_z</span><span class="p">(</span><span class="n">z_star</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">g_y</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ne</span> <span class="o">+</span> <span class="n">ni</span> <span class="o">+</span> <span class="n">ni</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">g_y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">reg</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">backward_reg</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">nz</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">Jz</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">Jz</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">reg</span><span class="p">,</span> <span class="n">rhs</span><span class="p">)</span>
+        <span class="n">Jx</span> <span class="o">=</span> <span class="n">kkt_jac_x</span><span class="p">(</span><span class="n">z_star</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">Jyhat</span> <span class="o">=</span> <span class="n">kkt_jac_yhat</span><span class="p">(</span><span class="n">z_star</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y_hat</span><span class="p">)</span>
+        <span class="n">g_x</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">Jx</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">v</span><span class="p">)</span>
+        <span class="n">g_yhat</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">Jyhat</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">g_x</span><span class="p">,</span> <span class="n">g_yhat</span>
+
+    <span class="n">project_single</span><span class="o">.</span><span class="n">defvjp</span><span class="p">(</span><span class="n">project_single_fwd</span><span class="p">,</span> <span class="n">project_single_bwd</span><span class="p">)</span>
+    <span class="n">project</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">project_single</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">eq_constraints</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">eq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+    <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ineq_constraints</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ineq_fun</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ProjectionLayer</span><span class="p">(</span>
+        <span class="n">project</span><span class="o">=</span><span class="n">project</span><span class="p">,</span>
+        <span class="n">project_single</span><span class="o">=</span><span class="n">project_single</span><span class="p">,</span>
+        <span class="n">solve_single</span><span class="o">=</span><span class="n">solve_single</span><span class="p">,</span>
+        <span class="n">eq_constraints</span><span class="o">=</span><span class="n">eq_constraints</span><span class="p">,</span>
+        <span class="n">ineq_constraints</span><span class="o">=</span><span class="n">ineq_constraints</span><span class="p">,</span>
+        <span class="n">dims</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;n_x&quot;</span><span class="p">:</span> <span class="n">nx</span><span class="p">,</span> <span class="s2">&quot;n_y&quot;</span><span class="p">:</span> <span class="n">ny</span><span class="p">,</span> <span class="s2">&quot;n_eq&quot;</span><span class="p">:</span> <span class="n">ne</span><span class="p">,</span> <span class="s2">&quot;n_ineq&quot;</span><span class="p">:</span> <span class="n">ni</span><span class="p">,</span> <span class="s2">&quot;n_z&quot;</span><span class="p">:</span> <span class="n">nz</span><span class="p">,</span> <span class="s2">&quot;raw_n_ineq&quot;</span><span class="p">:</span> <span class="n">raw_ni</span><span class="p">},</span>
+        <span class="n">settings</span><span class="o">=</span><span class="n">cfg</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

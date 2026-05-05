@@ -1,0 +1,463 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jaxmodel.model &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jaxmodel.model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jaxmodel.model</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">VariableSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.objective</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_objective</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.constraints</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ConstraintEntry</span><span class="p">,</span>
+    <span class="n">aggregate_constraint_jacobian</span><span class="p">,</span>
+    <span class="n">aggregate_constraints</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.bounds</span><span class="w"> </span><span class="kn">import</span> <span class="n">BoundSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.parameters</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.autodiff</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">build_grad_y_objective</span><span class="p">,</span>
+    <span class="n">build_hess_y_objective</span><span class="p">,</span>
+    <span class="n">build_diag_hess_y_objective</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.approximations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">build_sqp_data</span><span class="p">,</span>
+    <span class="n">build_sqp_subproblem_data</span><span class="p">,</span>
+    <span class="n">linearize_constraints</span><span class="p">,</span>
+    <span class="n">linearize_constraints_data</span><span class="p">,</span>
+    <span class="n">quadraticize_objective</span><span class="p">,</span>
+    <span class="n">quadraticize_objective_data</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="JaxNLPModel">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JaxNLPModel</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">var_spec</span><span class="p">:</span> <span class="n">VariableSpec</span><span class="p">,</span>
+        <span class="n">objective_fun</span><span class="p">,</span>
+        <span class="n">constraints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">ConstraintEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">BoundSpec</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">parameter_spec</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ParameterSpec</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
+        <span class="n">jit_compile</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_spec</span> <span class="o">=</span> <span class="n">var_spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter_spec</span> <span class="o">=</span> <span class="n">parameter_spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">dtype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="n">BoundSpec</span><span class="p">()</span> <span class="k">if</span> <span class="n">bounds</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">bounds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">constraints</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">constraints</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_constraints</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;eq&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ineq_constraints</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ineq&quot;</span><span class="p">]</span>
+
+        <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">objective_structure</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_obj_flat</span><span class="p">,</span>
+            <span class="n">grad_fun</span><span class="p">,</span>
+            <span class="n">hess_fun</span><span class="p">,</span>
+            <span class="n">diag_hess_fun</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="n">resolve_objective</span><span class="p">(</span><span class="n">var_spec</span><span class="p">,</span> <span class="n">objective_fun</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span> <span class="o">=</span> <span class="n">aggregate_constraints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_constraints</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span> <span class="o">=</span> <span class="n">aggregate_constraints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ineq_constraints</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">objective_structure</span> <span class="o">==</span> <span class="s2">&quot;quadratic&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span> <span class="o">=</span> <span class="n">grad_fun</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span> <span class="o">=</span> <span class="n">hess_fun</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span> <span class="o">=</span> <span class="n">diag_hess_fun</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span> <span class="o">=</span> <span class="n">build_grad_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_obj_flat</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span> <span class="o">=</span> <span class="n">build_hess_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_obj_flat</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span> <span class="o">=</span> <span class="n">build_diag_hess_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_structure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_constraint_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_constraints</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ineq_structure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_constraint_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ineq_constraints</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span> <span class="o">=</span> <span class="n">aggregate_constraint_jacobian</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eq_constraints</span><span class="p">,</span>
+            <span class="n">n_vars</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">var_spec</span><span class="o">.</span><span class="n">total_size</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span> <span class="o">=</span> <span class="n">aggregate_constraint_jacobian</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ineq_constraints</span><span class="p">,</span>
+            <span class="n">n_vars</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">var_spec</span><span class="o">.</span><span class="n">total_size</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">jit_compile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compile</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_detect_constraint_structure</span><span class="p">(</span><span class="n">constraints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ConstraintEntry</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">constraints</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;empty&quot;</span>
+        <span class="n">structures</span> <span class="o">=</span> <span class="p">{</span><span class="n">c</span><span class="o">.</span><span class="n">structure</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">structures</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">structures</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;affine&quot;</span><span class="p">,</span> <span class="s2">&quot;quadratic&quot;</span><span class="p">,</span> <span class="s2">&quot;nonlinear&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">s</span>
+        <span class="k">return</span> <span class="s2">&quot;mixed&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objective_value</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">objective_value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_y_objective</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grad_y_objective</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hess_y_objective</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hess_y_objective</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diag_hess_y_objective</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diag_hess_y_objective</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq_residual</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eq_residual</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ineq_residual</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ineq_residual</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jac_y_eq</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jac_y_eq</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jac_y_ineq</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jac_y_ineq</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower_bounds</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower_bounds</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper_bounds</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">upper_bounds</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_residuals</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bound_residuals</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">linearize_constraints</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">linearize_constraints</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linearization_data</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">linearization_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quadraticize_objective</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quadraticize_objective</span><span class="p">,</span>
+            <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;use_diagonal_hessian&quot;</span><span class="p">,</span> <span class="s2">&quot;diag_floor&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quadratic_objective_data</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quadratic_objective_data</span><span class="p">,</span>
+            <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;use_diagonal_hessian&quot;</span><span class="p">,</span> <span class="s2">&quot;diag_floor&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sqp_data</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sqp_data</span><span class="p">,</span>
+            <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;use_diagonal_hessian&quot;</span><span class="p">,</span> <span class="s2">&quot;diag_floor&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sqp_subproblem_data</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sqp_subproblem_data</span><span class="p">,</span>
+            <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;use_diagonal_hessian&quot;</span><span class="p">,</span> <span class="s2">&quot;diag_floor&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="JaxNLPModel.pack_vars">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.pack_vars">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">pack_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_spec</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.unpack_vars">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.unpack_vars">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unpack_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_spec</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.objective_value">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.objective_value">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">objective_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj_flat</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.validate_params">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.validate_params">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter_spec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameter_spec</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.grad_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.grad_y_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">grad_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.hess_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.hess_y_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hess_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.diag_hess_y_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.diag_hess_y_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diag_hess_y_objective</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.eq_residual">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.eq_residual">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">eq_residual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.ineq_residual">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.ineq_residual">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ineq_residual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.jac_y_eq">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.jac_y_eq">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jac_y_eq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.jac_y_ineq">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.jac_y_ineq">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jac_y_ineq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.lower_bounds">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.lower_bounds">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lower_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.upper_bounds">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.upper_bounds">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">upper_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.bound_residuals">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.bound_residuals">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bound_residuals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">lb</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">0</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">ub</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">0</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ub</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lb</span><span class="p">,</span> <span class="n">ub</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.linearize_constraints">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.linearize_constraints">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">linearize_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">linearize_constraints</span><span class="p">(</span>
+            <span class="n">eq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span><span class="p">,</span>
+            <span class="n">ineq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span><span class="p">,</span>
+            <span class="n">jac_eq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span><span class="p">,</span>
+            <span class="n">jac_ineq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.linearization_data">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.linearization_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">linearization_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">linearize_constraints_data</span><span class="p">(</span>
+            <span class="n">eq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span><span class="p">,</span>
+            <span class="n">ineq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span><span class="p">,</span>
+            <span class="n">jac_eq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span><span class="p">,</span>
+            <span class="n">jac_ineq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.quadraticize_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.quadraticize_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">quadraticize_objective</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">,</span>
+        <span class="n">y</span><span class="p">,</span>
+        <span class="n">rho</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">use_diagonal_hessian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">diag_floor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">quadraticize_objective</span><span class="p">(</span>
+            <span class="n">grad_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">,</span>
+            <span class="n">hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span><span class="p">,</span>
+            <span class="n">diag_hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">,</span>
+            <span class="n">use_diagonal_hessian</span><span class="o">=</span><span class="n">use_diagonal_hessian</span><span class="p">,</span>
+            <span class="n">diag_floor</span><span class="o">=</span><span class="n">diag_floor</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.quadratic_objective_data">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.quadratic_objective_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">quadratic_objective_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">,</span>
+        <span class="n">y</span><span class="p">,</span>
+        <span class="n">rho</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">use_diagonal_hessian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">diag_floor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">quadraticize_objective_data</span><span class="p">(</span>
+            <span class="n">grad_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">,</span>
+            <span class="n">hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span><span class="p">,</span>
+            <span class="n">diag_hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">,</span>
+            <span class="n">use_diagonal_hessian</span><span class="o">=</span><span class="n">use_diagonal_hessian</span><span class="p">,</span>
+            <span class="n">diag_floor</span><span class="o">=</span><span class="n">diag_floor</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.sqp_data">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.sqp_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sqp_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">,</span>
+        <span class="n">y</span><span class="p">,</span>
+        <span class="n">rho</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">use_diagonal_hessian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">diag_floor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">build_sqp_data</span><span class="p">(</span>
+            <span class="n">eq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span><span class="p">,</span>
+            <span class="n">ineq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span><span class="p">,</span>
+            <span class="n">jac_eq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span><span class="p">,</span>
+            <span class="n">jac_ineq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span><span class="p">,</span>
+            <span class="n">grad_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">,</span>
+            <span class="n">hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span><span class="p">,</span>
+            <span class="n">diag_hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span><span class="p">,</span>
+            <span class="n">lower_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span><span class="p">,</span>
+            <span class="n">upper_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">,</span>
+            <span class="n">use_diagonal_hessian</span><span class="o">=</span><span class="n">use_diagonal_hessian</span><span class="p">,</span>
+            <span class="n">diag_floor</span><span class="o">=</span><span class="n">diag_floor</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JaxNLPModel.sqp_subproblem_data">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.model.JaxNLPModel.sqp_subproblem_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sqp_subproblem_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">,</span>
+        <span class="n">y</span><span class="p">,</span>
+        <span class="n">rho</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">use_diagonal_hessian</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">diag_floor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">build_sqp_subproblem_data</span><span class="p">(</span>
+            <span class="n">eq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_eq_fun</span><span class="p">,</span>
+            <span class="n">ineq_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ineq_fun</span><span class="p">,</span>
+            <span class="n">jac_eq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_h_y</span><span class="p">,</span>
+            <span class="n">jac_ineq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_jac_g_y</span><span class="p">,</span>
+            <span class="n">grad_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_f_y</span><span class="p">,</span>
+            <span class="n">hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_hess_f_y</span><span class="p">,</span>
+            <span class="n">diag_hess_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_diag_hess_f_y</span><span class="p">,</span>
+            <span class="n">lower_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">lower_fun</span><span class="p">,</span>
+            <span class="n">upper_fun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">upper_fun</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
+            <span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">,</span>
+            <span class="n">use_diagonal_hessian</span><span class="o">=</span><span class="n">use_diagonal_hessian</span><span class="p">,</span>
+            <span class="n">diag_floor</span><span class="o">=</span><span class="n">diag_floor</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

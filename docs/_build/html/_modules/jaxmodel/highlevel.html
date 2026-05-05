@@ -1,0 +1,435 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jaxmodel.highlevel &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LICENSE.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">jaxmodel.highlevel</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for jaxmodel.highlevel</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.blocks</span><span class="w"> </span><span class="kn">import</span> <span class="n">affine_eq_from_parts</span><span class="p">,</span> <span class="n">affine_ineq_from_parts</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">NLPBuilder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.constraints</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">eq_block</span><span class="p">,</span>
+    <span class="n">ineq_block</span><span class="p">,</span>
+    <span class="n">quadratic_eq_scalar</span><span class="p">,</span>
+    <span class="n">quadratic_ineq_scalar</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.objective</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuadraticObjective</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.parameters</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.variables</span><span class="w"> </span><span class="kn">import</span> <span class="n">VariableBuilder</span><span class="p">,</span> <span class="n">VariableSpec</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_AffineBound</span><span class="p">:</span>
+    <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">M</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HighLevelNLPBuilder</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;High-level modeling interface built on top of NLPBuilder.</span>
+
+<span class="sd">    This class keeps the same functionality as the low-level API but provides</span>
+<span class="sd">    easier methods for users to define common model structures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">dtype</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vb</span> <span class="o">=</span> <span class="n">VariableBuilder</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_objective_fun</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_AffineBound</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_AffineBound</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_variable">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_variable">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vb</span><span class="o">.</span><span class="n">add_vector</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_parameter">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_parameter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; already exists&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.set_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.set_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_objective</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objective_fun</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_objective_fun</span> <span class="o">=</span> <span class="n">objective_fun</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.set_quadratic_objective">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.set_quadratic_objective">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_quadratic_objective</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">Q</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">constant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_objective_fun</span> <span class="o">=</span> <span class="n">QuadraticObjective</span><span class="p">(</span><span class="n">Q</span><span class="o">=</span><span class="n">Q</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">constant</span><span class="o">=</span><span class="n">constant</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_affine_equality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_affine_equality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_affine_equality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">A</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">rhs_const</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">param_terms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;affine_eq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="n">param_terms</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">param_terms</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">param_terms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span><span class="s2">&quot;affine_eq&quot;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">var_name</span><span class="o">=</span><span class="n">var_name</span><span class="p">,</span> <span class="n">A</span><span class="o">=</span><span class="n">A</span><span class="p">,</span> <span class="n">rhs_const</span><span class="o">=</span><span class="n">rhs_const</span><span class="p">,</span> <span class="n">param_terms</span><span class="o">=</span><span class="n">param_terms</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_affine_inequality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_affine_inequality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_affine_inequality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">C</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">rhs_const</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">param_terms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;affine_ineq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="n">param_terms</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">param_terms</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">param_terms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span><span class="s2">&quot;affine_ineq&quot;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">var_name</span><span class="o">=</span><span class="n">var_name</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">,</span> <span class="n">rhs_const</span><span class="o">=</span><span class="n">rhs_const</span><span class="p">,</span> <span class="n">param_terms</span><span class="o">=</span><span class="n">param_terms</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_nonlinear_equality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_nonlinear_equality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_nonlinear_equality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">fun</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nonlinear_eq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;eq_block&quot;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fun</span><span class="o">=</span><span class="n">fun</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_nonlinear_inequality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_nonlinear_inequality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_nonlinear_inequality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">fun</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nonlinear_ineq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;ineq_block&quot;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fun</span><span class="o">=</span><span class="n">fun</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_quadratic_equality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_quadratic_equality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_quadratic_equality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">Q</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">rhs_const</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">x_coeff</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">x_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;quadratic_eq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;quadratic_eq&quot;</span><span class="p">,</span>
+                <span class="nb">dict</span><span class="p">(</span><span class="n">Q</span><span class="o">=</span><span class="n">Q</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">rhs_const</span><span class="o">=</span><span class="n">rhs_const</span><span class="p">,</span> <span class="n">x_coeff</span><span class="o">=</span><span class="n">x_coeff</span><span class="p">,</span> <span class="n">x_name</span><span class="o">=</span><span class="n">x_name</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.add_quadratic_inequality">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.add_quadratic_inequality">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_quadratic_inequality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">Q</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">rhs_const</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">x_coeff</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">x_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;quadratic_ineq&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;quadratic_ineq&quot;</span><span class="p">,</span>
+                <span class="nb">dict</span><span class="p">(</span><span class="n">Q</span><span class="o">=</span><span class="n">Q</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">rhs_const</span><span class="o">=</span><span class="n">rhs_const</span><span class="p">,</span> <span class="n">x_coeff</span><span class="o">=</span><span class="n">x_coeff</span><span class="p">,</span> <span class="n">x_name</span><span class="o">=</span><span class="n">x_name</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.set_affine_lower_bound">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.set_affine_lower_bound">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_affine_lower_bound</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">M</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">[</span><span class="n">var_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_AffineBound</span><span class="p">(</span><span class="n">param_name</span><span class="o">=</span><span class="n">param_name</span><span class="p">,</span> <span class="n">M</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">M</span><span class="p">),</span> <span class="n">c</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.set_affine_upper_bound">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.set_affine_upper_bound">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_affine_upper_bound</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">M</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">c</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HighLevelNLPBuilder&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">[</span><span class="n">var_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_AffineBound</span><span class="p">(</span><span class="n">param_name</span><span class="o">=</span><span class="n">param_name</span><span class="p">,</span> <span class="n">M</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">M</span><span class="p">),</span> <span class="n">c</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_parameter_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">example_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ParameterSpec</span><span class="p">:</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">example_params</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing parameter examples for: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">shapes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">size</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">example_params</span><span class="p">[</span><span class="n">name</span><span class="p">])</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">size</span><span class="p">,):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; expected shape </span><span class="si">{</span><span class="p">(</span><span class="n">size</span><span class="p">,)</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">shapes</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">shape</span>
+        <span class="k">return</span> <span class="n">ParameterSpec</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_param_sizes</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">shapes</span><span class="o">=</span><span class="n">shapes</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">var_spec</span><span class="p">:</span> <span class="n">VariableSpec</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">var_name</span><span class="p">,</span> <span class="n">bnd</span> <span class="ow">in</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">var_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">shapes</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown variable block &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; in bounds&quot;</span><span class="p">)</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">var_name</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">bnd</span><span class="o">.</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bound matrix for &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; must have </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> rows, got </span><span class="si">{</span><span class="n">bnd</span><span class="o">.</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">bnd</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n</span><span class="p">,):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bound vector for &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; must have shape </span><span class="si">{</span><span class="p">(</span><span class="n">n</span><span class="p">,)</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">bnd</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">lower_fun</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+            <span class="n">blocks</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">:</span>
+                    <span class="n">bnd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lower_bounds</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                    <span class="n">blocks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">bnd</span><span class="o">.</span><span class="n">M</span> <span class="o">@</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">bnd</span><span class="o">.</span><span class="n">param_name</span><span class="p">])</span> <span class="o">+</span> <span class="n">bnd</span><span class="o">.</span><span class="n">c</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">blocks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">inf</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">upper_fun</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+            <span class="n">blocks</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">:</span>
+                    <span class="n">bnd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_bounds</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                    <span class="n">blocks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">bnd</span><span class="o">.</span><span class="n">M</span> <span class="o">@</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">bnd</span><span class="o">.</span><span class="n">param_name</span><span class="p">])</span> <span class="o">+</span> <span class="n">bnd</span><span class="o">.</span><span class="n">c</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">blocks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">inf</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">var_spec</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lower_fun</span><span class="p">,</span> <span class="n">upper_fun</span>
+
+<div class="viewcode-block" id="HighLevelNLPBuilder.build">
+<a class="viewcode-back" href="../../api/core/jaxmodel/module_init.html#jaxmodel.highlevel.HighLevelNLPBuilder.build">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">example_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">jit_compile</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_objective_fun</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Objective must be set before build().&quot;</span><span class="p">)</span>
+
+        <span class="n">var_spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vb</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+        <span class="n">parameter_spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_parameter_spec</span><span class="p">(</span><span class="n">example_params</span><span class="p">)</span>
+        <span class="n">lower_fun</span><span class="p">,</span> <span class="n">upper_fun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_bounds</span><span class="p">(</span><span class="n">var_spec</span><span class="p">)</span>
+
+        <span class="n">builder</span> <span class="o">=</span> <span class="n">NLPBuilder</span><span class="p">(</span><span class="n">var_spec</span><span class="o">=</span><span class="n">var_spec</span><span class="p">,</span> <span class="n">parameter_spec</span><span class="o">=</span><span class="n">parameter_spec</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">set_objective</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_objective_fun</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">kind</span><span class="p">,</span> <span class="n">payload</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_constraints</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;affine_eq&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span>
+                    <span class="n">affine_eq_from_parts</span><span class="p">(</span>
+                        <span class="n">var_spec</span><span class="o">=</span><span class="n">var_spec</span><span class="p">,</span>
+                        <span class="n">y_blocks</span><span class="o">=</span><span class="p">[(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">]),</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;var_name&quot;</span><span class="p">])],</span>
+                        <span class="n">rhs_const</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;rhs_const&quot;</span><span class="p">],</span>
+                        <span class="n">x_blocks</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;param_terms&quot;</span><span class="p">],</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;affine_ineq&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span>
+                    <span class="n">affine_ineq_from_parts</span><span class="p">(</span>
+                        <span class="n">var_spec</span><span class="o">=</span><span class="n">var_spec</span><span class="p">,</span>
+                        <span class="n">y_blocks</span><span class="o">=</span><span class="p">[(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">]),</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;var_name&quot;</span><span class="p">])],</span>
+                        <span class="n">rhs_const</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;rhs_const&quot;</span><span class="p">],</span>
+                        <span class="n">x_blocks</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;param_terms&quot;</span><span class="p">],</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;eq_block&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span><span class="n">eq_block</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;fun&quot;</span><span class="p">],</span> <span class="n">var_spec</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ineq_block&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span><span class="n">ineq_block</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;fun&quot;</span><span class="p">],</span> <span class="n">var_spec</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;quadratic_eq&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span>
+                    <span class="n">quadratic_eq_scalar</span><span class="p">(</span>
+                        <span class="n">var_spec</span><span class="o">=</span><span class="n">var_spec</span><span class="p">,</span>
+                        <span class="n">Q</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;Q&quot;</span><span class="p">]),</span>
+                        <span class="n">c</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]),</span>
+                        <span class="n">rhs_const</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;rhs_const&quot;</span><span class="p">],</span>
+                        <span class="n">x_coeff</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_coeff&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_coeff&quot;</span><span class="p">]),</span>
+                        <span class="n">x_name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_name&quot;</span><span class="p">],</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;quadratic_ineq&quot;</span><span class="p">:</span>
+                <span class="n">builder</span><span class="o">.</span><span class="n">add_constraint</span><span class="p">(</span>
+                    <span class="n">quadratic_ineq_scalar</span><span class="p">(</span>
+                        <span class="n">var_spec</span><span class="o">=</span><span class="n">var_spec</span><span class="p">,</span>
+                        <span class="n">Q</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;Q&quot;</span><span class="p">]),</span>
+                        <span class="n">c</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]),</span>
+                        <span class="n">rhs_const</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;rhs_const&quot;</span><span class="p">],</span>
+                        <span class="n">x_coeff</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_coeff&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_coeff&quot;</span><span class="p">]),</span>
+                        <span class="n">x_name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;x_name&quot;</span><span class="p">],</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">payload</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown constraint kind: </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lower_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">upper_fun</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">builder</span><span class="o">.</span><span class="n">set_bounds</span><span class="p">(</span><span class="n">lower_fun</span><span class="o">=</span><span class="n">lower_fun</span><span class="p">,</span> <span class="n">upper_fun</span><span class="o">=</span><span class="n">upper_fun</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">builder</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">jit_compile</span><span class="o">=</span><span class="n">jit_compile</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

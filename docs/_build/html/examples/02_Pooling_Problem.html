@@ -1,0 +1,287 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pooling Problem &mdash; KKT-HardNet Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=7ee30e52" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=292eb321"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Package" href="../api/package/index.html" />
+    <link rel="prev" title="Extractive Distillation Column" href="01_ED_Column.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            KKT-HardNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_ED_Column.html">Extractive Distillation Column</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Pooling Problem</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#prepare-data">Prepare Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#build-model">Build Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#train">Train</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#load-and-use-a-trained-model">Load and Use a Trained Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-summary">Example Summary</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/package/index.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/core/index.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LICENSE.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../REMARKS_ON_UPDATES.html">Remarks on Updates</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">KKT-HardNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">Pooling Problem</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/examples/02_Pooling_Problem.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="pooling-problem">
+<h1>Pooling Problem<a class="headerlink" href="#pooling-problem" title="Link to this heading"></a></h1>
+<p>This example trains KKT-HardNet on a pooling problem with nonlinear blending
+constraints and quality limits.</p>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="n">ROOT</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+    <span class="n">path</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">(),</span> <span class="o">*</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">path</span> <span class="o">/</span> <span class="s2">&quot;kkthn&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">path</span> <span class="o">/</span> <span class="s2">&quot;notebooks&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>
+<span class="p">)</span>
+<span class="n">SRC</span> <span class="o">=</span> <span class="n">ROOT</span> <span class="o">/</span> <span class="s2">&quot;kkthn&quot;</span> <span class="o">/</span> <span class="s2">&quot;src&quot;</span>
+<span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">SRC</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">SRC</span><span class="p">))</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kkthn</span><span class="w"> </span><span class="kn">import</span> <span class="n">KKTHardNet</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">DATA_PATH</span> <span class="o">=</span> <span class="s2">&quot;dataset/Pooling_dataset.csv&quot;</span>
+
+<span class="n">PARAMETERS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;x1&quot;</span><span class="p">,</span> <span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="s2">&quot;x3&quot;</span><span class="p">,</span> <span class="s2">&quot;x4&quot;</span><span class="p">]</span>
+<span class="n">VARIABLES</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;y1&quot;</span><span class="p">,</span> <span class="s2">&quot;y2&quot;</span><span class="p">,</span> <span class="s2">&quot;y3&quot;</span><span class="p">,</span> <span class="s2">&quot;y4&quot;</span><span class="p">,</span> <span class="s2">&quot;y5&quot;</span><span class="p">]</span>
+
+<span class="n">TRAIN</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;epochs&quot;</span><span class="p">:</span> <span class="mi">1200</span><span class="p">,</span>
+    <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+    <span class="s2">&quot;learning_rate&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+    <span class="s2">&quot;train_frac&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="s2">&quot;hidden_size&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+    <span class="s2">&quot;hidden_layers&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+    <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;float64&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;print_every&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s2">&quot;newton_step_length&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="s2">&quot;newton_tol&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span>
+    <span class="s2">&quot;newton_reg_factor&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="s2">&quot;max_newton_iter&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s2">&quot;max_backtrack_iter&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;eta&quot;</span><span class="p">:</span> <span class="mi">75</span><span class="p">,</span>
+    <span class="s2">&quot;epoch_mlp&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s2">&quot;cons_alpha&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="prepare-data">
+<h2>Prepare Data<a class="headerlink" href="#prepare-data" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">DATA_PATH</span><span class="p">)</span>
+
+<span class="n">required_cols</span> <span class="o">=</span> <span class="n">PARAMETERS</span> <span class="o">+</span> <span class="n">VARIABLES</span>
+<span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">required_cols</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+<span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing columns: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">df_2000</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">df</span><span class="p">[</span><span class="n">required_cols</span><span class="p">]</span>
+    <span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
+    <span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">TRAIN</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">])</span>
+    <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s2">&quot;dataset&quot;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">param_path</span> <span class="o">=</span> <span class="s2">&quot;dataset/pooling_parameters_2000.csv&quot;</span>
+<span class="n">var_path</span> <span class="o">=</span> <span class="s2">&quot;dataset/pooling_variables_2000.csv&quot;</span>
+
+<span class="n">df_2000</span><span class="p">[</span><span class="n">PARAMETERS</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">param_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">df_2000</span><span class="p">[</span><span class="n">VARIABLES</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">var_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="build-model">
+<h2>Build Model<a class="headerlink" href="#build-model" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">KKTHardNet</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Pooling&quot;</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="n">TRAIN</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">PARAMETERS</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="n">VARIABLES</span><span class="p">)</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+    <span class="n">y</span><span class="o">.</span><span class="n">y2</span> <span class="o">+</span> <span class="n">y</span><span class="o">.</span><span class="n">y3</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">x1</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">x2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">.</span><span class="n">x3</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">y2</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">y4</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">.</span><span class="n">x4</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">y3</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">y5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">.</span><span class="n">y1</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y2</span> <span class="o">+</span> <span class="n">y</span><span class="o">.</span><span class="n">y1</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y3</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">x1</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">x2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">.</span><span class="n">y1</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y4</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">x3</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">.</span><span class="n">y1</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y3</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">y5</span> <span class="o">-</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">x4</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
+    <span class="n">parameters</span><span class="o">=</span><span class="n">param_path</span><span class="p">,</span>
+    <span class="n">variables</span><span class="o">=</span><span class="n">var_path</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="train">
+<h2>Train<a class="headerlink" href="#train" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="load-and-use-a-trained-model">
+<h2>Load and Use a Trained Model<a class="headerlink" href="#load-and-use-a-trained-model" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">run_dirs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Pooling_20260505_105644&quot;</span><span class="p">)</span>
+<span class="p">]</span>
+
+<span class="n">latest_run_dir</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">run_dirs</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">)</span>
+<span class="n">metadata_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">latest_run_dir</span><span class="p">,</span> <span class="s2">&quot;metadata.json&quot;</span><span class="p">)</span>
+
+<span class="n">loaded_model</span> <span class="o">=</span> <span class="n">KKTHardNet</span><span class="p">()</span>
+<span class="n">loaded_model</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">)</span>
+
+<span class="n">PARAMETERS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;x1&quot;</span><span class="p">,</span> <span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="s2">&quot;x3&quot;</span><span class="p">,</span> <span class="s2">&quot;x4&quot;</span><span class="p">]</span>
+<span class="n">VARIABLES</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;y1&quot;</span><span class="p">,</span> <span class="s2">&quot;y2&quot;</span><span class="p">,</span> <span class="s2">&quot;y3&quot;</span><span class="p">,</span> <span class="s2">&quot;y4&quot;</span><span class="p">,</span> <span class="s2">&quot;y5&quot;</span><span class="p">]</span>
+
+<span class="n">single_x</span> <span class="o">=</span> <span class="n">df_2000</span><span class="p">[</span><span class="n">PARAMETERS</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">batch_x</span> <span class="o">=</span> <span class="n">df_2000</span><span class="p">[</span><span class="n">PARAMETERS</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+<span class="n">loaded_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span>
+    <span class="p">[</span><span class="mf">41.79668639504713</span><span class="p">,</span> <span class="mf">205.6995824265593</span><span class="p">,</span> <span class="mf">95.92034507046218</span><span class="p">,</span> <span class="mf">156.35598700458974</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="n">loaded_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">batch_x</span><span class="p">,</span> <span class="n">projection_backend</span><span class="o">=</span><span class="s2">&quot;jax&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-summary">
+<h2>Example Summary<a class="headerlink" href="#example-summary" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>📊 KKT-HardNet Summary
+------------------------------------------------------------
+Model Name                        : Pooling
+No. of Parameters                 : 4
+No. of Variables                  : 5
+No. of Equalities                 : 4
+No. of Inequalities               : 2
+No. of Train Samples              : 1600
+No. of Validation Samples         : 400
+Maximum Constraint Violation      : 0.0019
+Training Time                     : 671.11 s
+Est. JAX Single Inference Time    : 0.17 ms
+Est. JAX Batch Inference Time     : 2.44 ms
+------------------------------------------------------------
+Note: Inference time estimations are based on
+microbenchmarking on the hardware used during
+training and may vary across different hardware
+and runtime conditions.
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="01_ED_Column.html" class="btn btn-neutral float-left" title="Extractive Distillation Column" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api/package/index.html" class="btn btn-neutral float-right" title="Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, KKT-HardNet Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
