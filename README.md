@@ -45,7 +45,7 @@ from kkthn import KKTHardNet
 
 ## Python Versions
 
-The package keeps Python-version-specific dependency pins through environment markers. CPU is the default install, and GPU support is enabled only when the user requests the `cuda12` extra.
+The package keeps Python-version-specific dependency pins through environment markers. CPU is the default install, and GPU support is enabled only when the user requests the `cuda12` extra. Complete documentation can be found [here](https://kkt-hardnet.readthedocs.io/).
 
 ## Basic API
 
