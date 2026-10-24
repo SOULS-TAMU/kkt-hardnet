@@ -1,3 +1,6 @@
 include AUTHORS CHANGELOG.md CITATION.cff CONTRIBUTING.md NOTICE
 
 include CITATION.bib
+
+recursive-include .github/scripts *.py
+recursive-include .github/validation *.json *.md *.txt
