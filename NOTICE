@@ -1,0 +1,12 @@
+KKT-HardNet
+
+Copyright (c) 2025 SOULS-TAMU
+
+Part of the HardNet stack maintained from SOULS-TAMU implementations.
+KKT-HardNet, DAEHN, and NLPOpt-Net contributions retain their
+upstream authorship and applicable license terms.
+Original repositories: https://github.com/SOULS-TAMU/kkt-hardnet
+and https://github.com/SOULS-TAMU/nlpoptnet.
+
+The current project is licensed under the Apache License, Version 2.0.
+See LICENSE for the full terms.

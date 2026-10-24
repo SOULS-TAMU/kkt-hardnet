@@ -1,0 +1,5 @@
+mypy==2.4.0
+complexipy==8.1.0
+markdown-it-py==4.2.0
+PyYAML==6.0.3
+pybtex==0.26.1

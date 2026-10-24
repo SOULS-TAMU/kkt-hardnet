@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="855" viewBox="0 0 960 855" role="img" aria-labelledby="title description">
+  <title id="title">HardNet architecture</title>
+  <desc id="description">KKTHN, DAEHN and NLPOPTNet supply framework-specific problem formulations to OHAGI. The shared learning engine uses PURIN for projection algorithms, sparse kernels and implicit differentiation.</desc>
+  <defs>
+    <marker id="plum-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M2 2 L10 6 L2 10" fill="none" stroke="#8E7488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="caramel-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M2 2 L10 6 L2 10" fill="none" stroke="#B77A36" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="855" fill="#FFFFFF"/>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <text x="480" y="43" font-size="24" fill="#625861">Framework-specific formulation with shared training and projection</text>
+    <text x="480" y="98" font-size="20" font-weight="600" letter-spacing="1.6" fill="#756173">PROBLEM INTERFACES</text>
+    <g fill="#FAF7FA" stroke="#DCCFDA" stroke-width="1.5">
+      <rect x="30" y="125" width="280" height="140" rx="18"/>
+      <rect x="340" y="125" width="280" height="140" rx="18"/>
+      <rect x="650" y="125" width="280" height="140" rx="18"/>
+    </g>
+    <g font-size="38" font-weight="700" fill="#53344B">
+      <text x="170" y="174">kkthn</text>
+      <text x="480" y="174">daehn</text>
+      <text x="790" y="174">nlpoptnet</text>
+    </g>
+    <g font-size="22" fill="#625861">
+      <text x="170" y="213"><tspan x="170">Constrained problem</tspan><tspan x="170" dy="29">formulation</tspan></text>
+      <text x="480" y="213"><tspan x="480">Differential-algebraic</tspan><tspan x="480" dy="29">formulation</tspan></text>
+      <text x="790" y="213"><tspan x="790">Nonlinear local</tspan><tspan x="790" dy="29">approximations</tspan></text>
+    </g>
+    <g fill="none" stroke="#8E7488" stroke-width="3" stroke-linecap="round" marker-end="url(#plum-arrow)">
+      <path d="M170 265 L340 328"/>
+      <path d="M480 265 L480 328"/>
+      <path d="M790 265 L620 328"/>
+    </g>
+    <rect x="140" y="330" width="680" height="190" rx="22" fill="#53344B"/>
+    <text x="480" y="365" font-size="20" font-weight="600" letter-spacing="1.5" fill="#EBD9E4">SHARED LEARNING ENGINE</text>
+    <text x="480" y="414" font-size="46" font-weight="700" fill="#FFF9F0">ohagi</text>
+    <text x="480" y="458" font-size="26" fill="#FFF6EC">Backbones · Losses · Training</text>
+    <text x="480" y="495" font-size="26" fill="#FFF6EC">Checkpoints · Export · Inference</text>
+    <path d="M480 521 L480 628" fill="none" stroke="#B77A36" stroke-width="3" stroke-linecap="round" marker-end="url(#caramel-arrow)"/>
+    <text x="510" y="583" text-anchor="start" font-size="24" fill="#805D35">projection calls</text>
+    <rect x="140" y="630" width="680" height="190" rx="22" fill="#FFF5E5" stroke="#D3AA73" stroke-width="1.5"/>
+    <text x="480" y="665" font-size="20" font-weight="600" letter-spacing="1.5" fill="#88602F">SHARED NUMERICAL BACKEND</text>
+    <text x="480" y="714" font-size="44" font-weight="700" fill="#53344B">purin</text>
+    <text x="480" y="757" font-size="26" fill="#684F45">Projection algorithms · Sparse kernels</text>
+    <text x="480" y="795" font-size="26" fill="#684F45">Implicit differentiation</text>
+  </g>
+</svg>

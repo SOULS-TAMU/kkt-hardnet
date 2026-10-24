@@ -1,0 +1,141 @@
+name: Validation
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [development]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  JAX_PLATFORMS: cpu
+  JAX_ENABLE_X64: 'true'
+  PYTHONDONTWRITEBYTECODE: '1'
+  MPLBACKEND: Agg
+defaults:
+  run:
+    shell: bash
+jobs:
+  api:
+    name: Public API compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - run: python .github/scripts/api_contract.py
+  numerical:
+    name: Training, numerical references and isolated metadata inference
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install pinned shared engine and candidate
+        run: |
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
+          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install ".[dev]" pytest-cov
+          python -m pip check
+      - run: python .github/scripts/numerical_regression.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: numerical-references
+          path: numerical-results.json
+          if-no-files-found: error
+  quality:
+    name: Complexity, duplication, types and dependency boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r .github/validation/requirements.txt
+      - run: npx --yes jscpd@5.4.2 --reporters json --output quality-duplication --min-tokens 80 --min-lines 6 --silent src
+      - run: python .github/scripts/quality_metrics.py quality-duplication/jscpd-report.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: code-quality-metrics
+          path: |
+            quality-results.json
+            quality-duplication/jscpd-report.json
+          if-no-files-found: error
+  documentation:
+    name: Links, citations and HTML documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r .github/validation/requirements.txt
+      - run: python .github/scripts/documentation.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: documentation-preview
+          path: |
+            site
+            documentation-results.json
+          if-no-files-found: error
+  external-links:
+    name: External documentation links
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
+        with:
+          args: >-
+            --no-progress --max-retries 3 --retry-wait-time 2 --timeout 30
+            --exclude '^https://img.shields.io/'
+            --exclude '^https://raw.githubusercontent.com/'
+            --exclude '^https://github.com/.*/actions/'
+            --exclude '^https://github.com/.*/tree/codex/coverage-development'
+            --accept '200..=299,429'
+            README.md CONTRIBUTING.md CHANGELOG.md
+          fail: true
+  performance:
+    name: Actual frontend inference performance (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - name: Install pinned shared engine and candidate
+        run: |
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
+          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install ".[dev]" pytest-cov
+          python -m pip check
+      - name: Prepare base source
+        run: |
+          if [[ "$BASE_REF" =~ ^0+$ ]]; then BASE_REF=$(git rev-parse HEAD^); fi
+          [[ "$BASE_REF" =~ ^[0-9a-f]{40}$ ]]
+          git worktree add --detach validation-base "$BASE_REF"
+      - run: python .github/scripts/performance.py --source validation-base --output performance-base.json
+      - run: python .github/scripts/performance.py --compare performance-base.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: performance-observations
+          path: |
+            performance-results.json
+            performance-base.json
+          retention-days: 90
+          if-no-files-found: error

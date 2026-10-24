@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "Please cite the software and relevant upstream research."
+title: "KKT-HardNet"
+type: software
+authors:
+  - name: "SOULS-TAMU contributors"
+license: "Apache-2.0"
+preferred-citation:
+  type: article
+  title: "Physics-informed neural networks with hard nonlinear equality and inequality constraints"
+  doi: "10.1016/j.compchemeng.2025.109418"
+  year: 2025
+  authors:
+    - family-names: "Iftakher"
+      given-names: "Ashfaq"
+    - family-names: "Golder"
+      given-names: "Rahul"
+    - family-names: "Roy"
+      given-names: "Bimol Nath"
+    - family-names: "Hasan"
+      given-names: "M. M. Faruque"
+
+repository-code: "https://github.com/SOULS-TAMU/kkt-hardnet"
+url: "https://github.com/SOULS-TAMU/kkt-hardnet/tree/development"
+version: "0.8.0"

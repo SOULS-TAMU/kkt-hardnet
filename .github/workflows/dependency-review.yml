@@ -1,0 +1,39 @@
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [development]
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Newly introduced dependency vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Resolve comparison commits
+        id: refs
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+        run: |
+          if [[ "$BASE_REF" =~ ^0+$ ]]; then BASE_REF=$(git rev-parse HEAD^); fi
+          [[ "$BASE_REF" =~ ^[0-9a-f]{40}$ ]]
+          echo "base=$BASE_REF" >> "$GITHUB_OUTPUT"
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ steps.refs.outputs.base }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fail-on-severity: moderate
+          license-check: false
+          vulnerability-check: true
+          comment-summary-in-pr: never
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 120

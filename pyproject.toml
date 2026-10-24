@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kkt-hardnet"
+version = "0.8.0"
+description = "KKTHN frontend on shared OHAGI components"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ohagi>=0.1.0,<0.2", "purin>=0.1.0,<0.2"]
+
+license = "Apache-2.0"
+license-files = ["LICENSE*", "NOTICE"]
+authors = [{name = "SOULS-TAMU contributors"}]
+keywords = ["jax", "constrained-learning", "differentiable-optimization"]
+
+[project.urls]
+Homepage = "https://github.com/SOULS-TAMU/kkt-hardnet/tree/development"
+Repository = "https://github.com/SOULS-TAMU/kkt-hardnet"
+Issues = "https://github.com/SOULS-TAMU/kkt-hardnet/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "build", "ruff", "osqp", "absl-py", "flatbuffers"]
+plotting = ["matplotlib>=3.8"]
+export = ["absl-py", "flatbuffers"]
+cuda12 = ["jax[cuda12]>=0.4.30"]
+cuda13 = ["jax[cuda13]>=0.7.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[project.entry-points."ohagi.compat"]
+"ohagi.export.predictor" = "kkthn._aliases:ALIASES"
+"ohagi.export.problem" = "kkthn._aliases:ALIASES"
+"ohagi.export.registry" = "kkthn._aliases:ALIASES"
+"ohagi.frontends.kkthn" = "kkthn._aliases:ALIASES"
+
+[project.entry-points."ohagi.symbols"]
+"ohagi.KKTHardNet" = "kkthn:KKTHardNet"
+"ohagi.ProblemBuilder" = "kkthn:ProblemBuilder"
+"ohagi.export.Predictor" = "kkthn.serialization.predictor:Predictor"
+"ohagi.export.load_predictor" = "kkthn.serialization.predictor:load_predictor"
+"ohagi.export.save_predictor" = "kkthn.serialization.predictor:save_predictor"
+"ohagi.export.load_problem" = "kkthn.serialization.problem:load_problem"
+"ohagi.export.load_sparse_structure" = "kkthn.serialization.problem:load_sparse_structure"
+"ohagi.export.load_symbolic_problem" = "kkthn.serialization.problem:load_symbolic_problem"
+"ohagi.export.save_problem" = "kkthn.serialization.problem:save_problem"
+"ohagi.export.save_sparse_structure" = "kkthn.serialization.problem:save_sparse_structure"
+"ohagi.export.symbolic_problem_spec" = "kkthn.serialization.problem:symbolic_problem_spec"
+"ohagi.export.projected_mlp_factory" = "kkthn.serialization.registry:projected_mlp_factory"
+"ohagi.export.register" = "kkthn.serialization.registry:register"
+"ohagi.export.resolve" = "kkthn.serialization.registry:resolve"
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["optional: Flax and Orbax integration"]
+
+[tool.coverage.run]
+branch = true
+source = ["kkthn"]
+
+[tool.coverage.report]
+fail_under = 58
+show_missing = true
+precision = 2
