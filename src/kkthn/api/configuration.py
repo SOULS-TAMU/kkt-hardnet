@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import asdict, fields, is_dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 import numpy as np
 from purin.solvers import ADMMConfig
 from purin.solvers import ChambollePockConfig
@@ -26,7 +26,7 @@ def _normalize_mapping(config) -> dict[str, Any]:
     if config is None:
         return {}
     if is_dataclass(config):
-        return asdict(config)
+        return asdict(cast(Any, config))
     if isinstance(config, Mapping):
         return dict(config)
     raise TypeError("Configuration must be a mapping or dataclass instance.")

@@ -33,3 +33,12 @@ Work targets the `development` branch. See the [validation policy](.github/valid
 for API snapshots, numerical references, measured coverage, dependency boundaries,
 type/complexity/duplication baselines and performance reports. Changes must preserve
 benchmark call signatures and shared OHAGI metadata inference.
+
+## Unreleased — coverage and quality
++
++- Raise inclusive statement-and-branch coverage enforcement to 90%.
++- Add numerical, gradient, serialization, differential, data and reporting tests.
++- Simplify host-side phase/reporting policies and differential stencil preparation
++  into focused private helpers; retain public signatures and numerical operations.
++- Resolve the recorded type-check errors and enforce cognitive complexity <=15.
++

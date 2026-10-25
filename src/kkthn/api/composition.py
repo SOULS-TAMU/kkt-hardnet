@@ -95,15 +95,19 @@ def __init__(
 
     self.projection_config = dict(getattr(projection, "config", {}))
 
-    self.dataset_spec: DatasetSpec | None = None
+    dataset_spec: DatasetSpec | None = None
+    self.dataset_spec = dataset_spec
 
     self._train_config = self._normalize_train_config(train)
 
-    self._trained: dict[str, _TrainedState] = {}
+    trained: dict[str, _TrainedState] = {}
+    self._trained = trained
 
-    self._last_method: str | None = None
+    last_method: str | None = None
+    self._last_method = last_method
 
-    self._metadata_path: str | None = None
+    metadata_path: str | None = None
+    self._metadata_path = metadata_path
 
     self._metric_canonical = None
 

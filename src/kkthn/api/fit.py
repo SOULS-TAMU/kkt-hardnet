@@ -117,14 +117,7 @@ def _aggregate_epoch_metrics(metric_rows, physical_counts, keys):
     if not metric_rows:
         return {key: 0.0 for key in keys}
 
-    first_value = None
-    for row in metric_rows:
-        for key in keys:
-            if key in row:
-                first_value = jnp.asarray(row[key])
-                break
-        if first_value is not None:
-            break
+    first_value = _first_metric_value(metric_rows, keys)
     if first_value is None:
         return {key: 0.0 for key in keys}
 
@@ -591,146 +584,46 @@ def _train_one_method(self, *, method, projection_config, prepared):
         train_step,
     ) = _prepare_method_training(self, method, prepared, projection_config)
     if resume is not None:
-        # A stopped run uses detailed final validation. Recreate the scalar
-        # boundary report used by an uninterrupted run before deciding the
-        # following epoch's learning rate (including threshold edge cases).
-        boundary = _lightweight_history_metrics(
-            _evaluate_scalar_batches(
+        current_learning_rate, optimizer, train_step, evaluation_step = (
+            _resume_method_boundary(
+                self,
+                prepared,
+                config,
+                history,
+                objective_schedule,
                 parameters,
+                current_learning_rate,
+                optimizer,
+                projector,
+                train_step,
                 evaluation_step,
-                prepared["Xva"],
-                prepared["Yva"],
-                int(config["batch_size"]),
-                prepared["dtype"],
+                resume,
                 metric_keys,
             )
         )
-        history[-1] = {
-            **history[-1],
-            **{f"validation_{k}": v for k, v in boundary.items()},
-        }
-        next_rate = float(history[-1]["learning_rate"])
-        for threshold, rate in objective_schedule:
-            if (
-                np.isfinite(boundary["data_loss"])
-                and boundary["data_loss"] <= threshold
-            ):
-                next_rate = min(next_rate, float(rate))
-        if next_rate != current_learning_rate:
-            current_learning_rate = next_rate
-            optimizer = Adam(learning_rate=current_learning_rate)
-            train_step, evaluation_step = self._projection_steps(
-                prepared["backbone"],
-                optimizer,
-                projector,
-                prepared["mean"],
-                prepared["scale"],
-                prepared["dtype"],
-            )
-        print(
-            f"Resuming after epoch {resume['completed_epochs']}; target epoch {config['epochs']}."
-        )
 
-    readiness = None
-    minimum = float(config["minimum_projection_convergence"])
-
-    # Projection-readiness warm-up exists only as part of the optional raw
-    # pretraining workflow. With pretrain=False, skip both the readiness
-    # evaluation and every raw-training graph so projected training begins
-    # immediately.
-    if bool(config["pretrain"]) and resume is None:
-        _raw, _projected, readiness = self._evaluate_projector(
-            parameters,
-            evaluation_step,
-            prepared["Xtr"],
-            prepared["Ytr"],
-            int(config["batch_size"]),
-            prepared["dtype"],
-        )
-        if readiness["converged_fraction"] < minimum:
-            raw_step, _raw_eval_step = self._raw_steps(
-                prepared["backbone"],
-                optimizer,
-                prepared["mean"],
-                prepared["scale"],
-                prepared["dtype"],
-                float(config["dual_pretrain_gamma"]),
-            )
-
-            def readiness_epoch(extra, state):
-                nonlocal readiness
-                parameters, optimizer_state = state
-                result = yield epoch_plan(
-                    parameters,
-                    optimizer_state,
-                    _fixed_batches(
-                        prepared["Xtr"],
-                        prepared["Ytr"],
-                        int(config["batch_size"]),
-                        shuffle=True,
-                        seed=int(config["seed"]) + 50_000 + extra,
-                        drop_last=bool(config["drop_last_batch"]),
-                    ),
-                    raw_step,
-                    prepared["dtype"],
-                )
-                parameters, optimizer_state = result.state
-                if (
-                    extra == 1
-                    or extra % max(1, int(config["readiness_check_every"])) == 0
-                ):
-                    _raw, _projected, readiness = self._evaluate_projector(
-                        parameters,
-                        evaluation_step,
-                        prepared["Xtr"],
-                        prepared["Ytr"],
-                        int(config["batch_size"]),
-                        prepared["dtype"],
-                    )
-                    if readiness["converged_fraction"] >= minimum:
-                        return EpochTransition((parameters, optimizer_state), True)
-                return EpochTransition((parameters, optimizer_state))
-
-            run = Engine.run(
-                (parameters, optimizer_state),
-                int(config["readiness_extra_epochs"]),
-                readiness_epoch,
-            )
-            parameters, optimizer_state = run.state
-
-        if readiness["converged_fraction"] < minimum:
-            warnings.warn(
-                f"{method} with predicted dual initialization "
-                f"converged for only "
-                f"{readiness['converged_fraction']:.1%} of raw "
-                "predictions. Invalid projection gradients are zeroed.",
-                RuntimeWarning,
-                stacklevel=3,
-            )
+    parameters, optimizer_state, readiness = _ensure_projection_readiness(
+        self,
+        prepared,
+        config,
+        resume,
+        parameters,
+        optimizer_state,
+        optimizer,
+        evaluation_step,
+        method,
+    )
 
     projected_epochs = max(0, int(config["epochs"]) - int(prepared["pretrain_epochs"]))
     projection_start_epoch = (
         prepared["pretrain_epochs"] + 1 if projected_epochs else None
     )
-    if projected_epochs:
-        if bool(config["pretrain"]):
-            print(
-                f"Switching to projection phase at epoch "
-                f"{projection_start_epoch} using "
-                f"{ProjectionMethod.normalize(method).value}."
-            )
-            # print(
-            #     "Removing the dual pretraining box and using predicted dual "
-            #     "initialization from the first projected epoch."
-            # )
-            pass
-        else:
-            # print(
-            #     "Raw pretraining disabled; starting projected training at "
-            #     f"epoch 1 using {ProjectionMethod.normalize(method).value} "
-            #     "with predicted dual initialization."
-            # )
-            pass
+    if projected_epochs and bool(config["pretrain"]):
+        print(
+            f"Switching to projection phase at epoch "
+            f"{projection_start_epoch} using "
+            f"{ProjectionMethod.normalize(method).value}."
+        )
     start = time.perf_counter()
     final_validation = None
 
@@ -817,10 +710,9 @@ def _train_one_method(self, *, method, projection_config, prepared):
         }
         # Monitor the physical validation objective, excluding consistency losses.
         # Reductions are permanent and take effect in the following epoch.
-        next_learning_rate = current_learning_rate
-        for threshold, rate in objective_schedule:
-            if np.isfinite(va_view["data_loss"]) and va_view["data_loss"] <= threshold:
-                next_learning_rate = min(next_learning_rate, float(rate))
+        next_learning_rate = _scheduled_rate(
+            current_learning_rate, objective_schedule, va_view["data_loss"]
+        )
         if (
             next_learning_rate < current_learning_rate
             and local_epoch < projected_epochs
@@ -839,15 +731,7 @@ def _train_one_method(self, *, method, projection_config, prepared):
                 prepared["scale"],
                 prepared["dtype"],
             )
-        for key in (
-            "primal_consistency_loss",
-            "equality_dual_consistency_loss",
-            "inequality_dual_consistency_loss",
-        ):
-            if key in tr_view:
-                row[f"training_{key}"] = tr_view[key]
-            if key in va_view:
-                row[f"validation_{key}"] = va_view[key]
+        _attach_consistency_metrics(row, tr_view, va_view)
         history.append(row)
 
         should_print = (
@@ -1154,3 +1038,195 @@ def _prepare_method_training(self, method, prepared, projection_config):
         resume,
         train_step,
     )
+
+
+def _first_metric_value(metric_rows, keys):
+    """Select the first present device scalar using the original row/key order."""
+    first_value = None
+    for row in metric_rows:
+        for key in keys:
+            if key in row:
+                first_value = jnp.asarray(row[key])
+                break
+        if first_value is not None:
+            break
+    return first_value
+
+
+def _ensure_projection_readiness(
+    self,
+    prepared,
+    config,
+    resume,
+    parameters,
+    optimizer_state,
+    optimizer,
+    evaluation_step,
+    method,
+):
+    """Run the retained optional raw warm-up before the projected phase."""
+    readiness = None
+    minimum = float(config["minimum_projection_convergence"])
+
+    # Projection-readiness warm-up exists only as part of the optional raw
+    # pretraining workflow. With pretrain=False, skip both the readiness
+    # evaluation and every raw-training graph so projected training begins
+    # immediately.
+    if bool(config["pretrain"]) and resume is None:
+        _raw, _projected, readiness = self._evaluate_projector(
+            parameters,
+            evaluation_step,
+            prepared["Xtr"],
+            prepared["Ytr"],
+            int(config["batch_size"]),
+            prepared["dtype"],
+        )
+        if readiness["converged_fraction"] < minimum:
+            raw_step, _raw_eval_step = self._raw_steps(
+                prepared["backbone"],
+                optimizer,
+                prepared["mean"],
+                prepared["scale"],
+                prepared["dtype"],
+                float(config["dual_pretrain_gamma"]),
+            )
+
+            readiness_epoch, readiness_value = _readiness_policy(
+                self, prepared, config, raw_step, evaluation_step, minimum, readiness
+            )
+
+            run = Engine.run(
+                (parameters, optimizer_state),
+                int(config["readiness_extra_epochs"]),
+                readiness_epoch,
+            )
+            parameters, optimizer_state = run.state
+            readiness = readiness_value()
+
+        if readiness["converged_fraction"] < minimum:
+            warnings.warn(
+                f"{method} with predicted dual initialization "
+                f"converged for only "
+                f"{readiness['converged_fraction']:.1%} of raw "
+                "predictions. Invalid projection gradients are zeroed.",
+                RuntimeWarning,
+                stacklevel=4,
+            )
+
+    return parameters, optimizer_state, readiness
+
+
+def _readiness_policy(
+    self, prepared, config, raw_step, evaluation_step, minimum, readiness
+):
+    """Build the warm-up epoch policy with its existing readiness-check schedule."""
+
+    def readiness_epoch(extra, state):
+        nonlocal readiness
+        parameters, optimizer_state = state
+        result = yield epoch_plan(
+            parameters,
+            optimizer_state,
+            _fixed_batches(
+                prepared["Xtr"],
+                prepared["Ytr"],
+                int(config["batch_size"]),
+                shuffle=True,
+                seed=int(config["seed"]) + 50_000 + extra,
+                drop_last=bool(config["drop_last_batch"]),
+            ),
+            raw_step,
+            prepared["dtype"],
+        )
+        parameters, optimizer_state = result.state
+        if extra == 1 or extra % max(1, int(config["readiness_check_every"])) == 0:
+            _raw, _projected, readiness = self._evaluate_projector(
+                parameters,
+                evaluation_step,
+                prepared["Xtr"],
+                prepared["Ytr"],
+                int(config["batch_size"]),
+                prepared["dtype"],
+            )
+            if readiness["converged_fraction"] >= minimum:
+                return EpochTransition((parameters, optimizer_state), True)
+        return EpochTransition((parameters, optimizer_state))
+
+    return readiness_epoch, lambda: readiness
+
+
+def _resume_method_boundary(
+    self,
+    prepared,
+    config,
+    history,
+    objective_schedule,
+    parameters,
+    current_learning_rate,
+    optimizer,
+    projector,
+    train_step,
+    evaluation_step,
+    resume,
+    metric_keys,
+):
+    """Recreate the saved epoch boundary before continuing its learning-rate policy."""
+    # A stopped run uses detailed final validation. Recreate the scalar
+    # boundary report used by an uninterrupted run before deciding the
+    # following epoch's learning rate (including threshold edge cases).
+    boundary = _lightweight_history_metrics(
+        _evaluate_scalar_batches(
+            parameters,
+            evaluation_step,
+            prepared["Xva"],
+            prepared["Yva"],
+            int(config["batch_size"]),
+            prepared["dtype"],
+            metric_keys,
+        )
+    )
+    history[-1] = {
+        **history[-1],
+        **{f"validation_{k}": v for k, v in boundary.items()},
+    }
+    next_rate = _scheduled_rate(
+        float(history[-1]["learning_rate"]), objective_schedule, boundary["data_loss"]
+    )
+    if next_rate != current_learning_rate:
+        current_learning_rate = next_rate
+        optimizer = Adam(learning_rate=current_learning_rate)
+        train_step, evaluation_step = self._projection_steps(
+            prepared["backbone"],
+            optimizer,
+            projector,
+            prepared["mean"],
+            prepared["scale"],
+            prepared["dtype"],
+        )
+    print(
+        f"Resuming after epoch {resume['completed_epochs']}; target epoch {config['epochs']}."
+    )
+
+    return current_learning_rate, optimizer, train_step, evaluation_step
+
+
+def _attach_consistency_metrics(row, tr_view, va_view):
+    """Attach only the consistency fields present in the original phase reports."""
+    for key in (
+        "primal_consistency_loss",
+        "equality_dual_consistency_loss",
+        "inequality_dual_consistency_loss",
+    ):
+        if key in tr_view:
+            row[f"training_{key}"] = tr_view[key]
+        if key in va_view:
+            row[f"validation_{key}"] = va_view[key]
+
+
+def _scheduled_rate(current_rate, schedule, data_loss):
+    """Apply the retained permanent threshold reductions in their original order."""
+    next_rate = current_rate
+    for threshold, rate in schedule:
+        if np.isfinite(data_loss) and data_loss <= threshold:
+            next_rate = min(next_rate, float(rate))
+    return next_rate

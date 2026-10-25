@@ -181,26 +181,7 @@ def predict(self, values, *, method=None, projection_backend=None, gradient=Fals
             return PredictionWithGradient(prediction, jacobian)
         return prediction
     if gradient:
-        value_jacobian_fn = self._single_value_jacobian_function(state)
-        values_device = []
-        jacobians_device = []
-
-        for row in X:
-            value_device, jacobian_device = value_jacobian_fn(
-                jnp.asarray(row, dtype=state.dtype)
-            )
-            values_device.append(value_device)
-            jacobians_device.append(jacobian_device)
-
-        prediction_host, jacobian_host = jax.device_get(
-            (values_device, jacobians_device)
-        )
-        prediction = np.stack([np.asarray(value) for value in prediction_host])
-        jacobian = np.stack([np.asarray(value) for value in jacobian_host])
-
-        if squeeze:
-            return PredictionWithGradient(prediction[0], jacobian[0])
-        return PredictionWithGradient(prediction, jacobian)
+        return _predict_with_gradient(self, state, X, squeeze)
 
     # Use the exact same single-instance forward map, but without
     # activating jacrev or the implicit backward pass.
@@ -212,3 +193,25 @@ def predict(self, values, *, method=None, projection_backend=None, gradient=Fals
     prediction = np.stack([np.asarray(value) for value in prediction_host])
 
     return prediction[0] if squeeze else prediction
+
+
+def _predict_with_gradient(self, state, X, squeeze):
+    """Evaluate the cached total Jacobian with the same vector/batch shape policy."""
+    value_jacobian_fn = self._single_value_jacobian_function(state)
+    values_device = []
+    jacobians_device = []
+
+    for row in X:
+        value_device, jacobian_device = value_jacobian_fn(
+            jnp.asarray(row, dtype=state.dtype)
+        )
+        values_device.append(value_device)
+        jacobians_device.append(jacobian_device)
+
+    prediction_host, jacobian_host = jax.device_get((values_device, jacobians_device))
+    prediction = np.stack([np.asarray(value) for value in prediction_host])
+    jacobian = np.stack([np.asarray(value) for value in jacobian_host])
+
+    if squeeze:
+        return PredictionWithGradient(prediction[0], jacobian[0])
+    return PredictionWithGradient(prediction, jacobian)

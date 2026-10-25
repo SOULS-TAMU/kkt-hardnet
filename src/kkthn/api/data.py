@@ -25,7 +25,7 @@ def _read_named_csv(path: str | Path, names: Sequence[str]) -> np.ndarray:
         rows = [[float(row[name]) for name in names] for row in reader]
     if not rows:
         raise ValueError(f"CSV file contains no data rows: {target}")
-    values = np.asarray(rows, dtype=np.float64)
+    values: np.ndarray = np.asarray(rows, dtype=np.float64)
     if not np.all(np.isfinite(values)):
         raise ValueError(f"CSV file contains NaN or infinite values: {target}")
     return values

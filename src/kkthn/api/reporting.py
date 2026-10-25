@@ -230,6 +230,7 @@ def plot_history(
     tr_mse = self._history_column(history, "tr_mse")
     val_mse = self._history_column(history, "val_mse")
     inverse_history = self._inverse_history_columns(history)
+    tr_violation = val_violation = None
     if not inverse_history:
         tr_violation = np.maximum(
             self._history_column(history, "tr_eq"),
@@ -283,29 +284,9 @@ def plot_history(
         axes[0].legend()
         axes[0].grid(True, alpha=0.3)
 
-        if inverse_history:
-            inverse_names = []
-            for name, values in inverse_history:
-                inverse_names.append(str(name))
-                axes[1].plot(epochs, values, linewidth=2, label=str(name))
-            actual_values = self._inverse_actual_values_for_plot(inverse_names)
-            for actual_value in actual_values:
-                if actual_value is not None and np.isfinite(actual_value):
-                    axes[1].axhline(actual_value, linewidth=2, linestyle=":")
-            axes[1].set_ylabel("Value")
-            axes[1].set_title("Inverse Parameters")
-        else:
-            axes[1].plot(epochs, tr_violation, linewidth=2, label="Train Violation")
-            axes[1].plot(
-                epochs,
-                val_violation,
-                linewidth=2,
-                linestyle="--",
-                label="Validation Violation",
-            )
-            axes[1].set_ylabel("Mean Violation")
-            axes[1].set_title("Violation")
-            axes[1].set_yscale("log")
+        _plot_secondary_history(
+            self, axes[1], epochs, inverse_history, tr_violation, val_violation
+        )
         axes[1].set_xlabel("Epoch")
         axes[1].legend()
         axes[1].grid(True, alpha=0.3)
@@ -375,32 +356,71 @@ def summary(self):
 def _decode_history_columns(rows):
     """Decode epoch columns using the existing numeric and string rules."""
     keys = sorted({key for row in rows for key in row})
-    history: dict[str, np.ndarray] = {}
-    for key in keys:
-        values = [row.get(key) for row in rows]
-        if key in {"stage"}:
-            history[key] = np.asarray(
-                ["" if value is None else str(value) for value in values], dtype=object
-            )
+    return {
+        key: _decode_history_column(key, [row.get(key) for row in rows]) for key in keys
+    }
+
+
+def _decode_history_column(key, values):
+    """Decode one independent history series while preserving its saved dtype."""
+    if key == "stage":
+        return _string_history_values(values)
+    converted, numeric = _numeric_history_values(values)
+    if not numeric:
+        return _string_history_values(values)
+    array = np.asarray(converted, dtype=np.float64)
+    if key == "epoch" and np.all(np.isfinite(array)):
+        array = array.astype(np.int64)
+    return array
+
+
+def _string_history_values(values):
+    """Keep missing text cells empty without changing numeric-missing semantics."""
+    return np.asarray(
+        ["" if value is None else str(value) for value in values], dtype=object
+    )
+
+
+def _numeric_history_values(values):
+    """Decode numeric history cells without changing missing-value or string rules."""
+    converted = []
+    numeric = True
+    for value in values:
+        if value is None or value == "":
+            converted.append(np.nan)
             continue
-        converted = []
-        numeric = True
-        for value in values:
-            if value is None or value == "":
-                converted.append(np.nan)
-                continue
-            try:
-                converted.append(float(value))
-            except (TypeError, ValueError):
-                numeric = False
-                break
-        if numeric:
-            array = np.asarray(converted, dtype=np.float64)
-            if key == "epoch" and np.all(np.isfinite(array)):
-                array = array.astype(np.int64)
-            history[key] = array
-        else:
-            history[key] = np.asarray(
-                ["" if value is None else str(value) for value in values], dtype=object
-            )
-    return history
+        try:
+            converted.append(float(value))
+        except (TypeError, ValueError):
+            numeric = False
+            break
+    return converted, numeric
+
+
+def _plot_secondary_history(
+    self, axis, epochs, inverse_history, tr_violation, val_violation
+):
+    """Render the original inverse-parameter or constraint-violation panel."""
+    if inverse_history:
+        inverse_names = []
+        for name, values in inverse_history:
+            inverse_names.append(str(name))
+            axis.plot(epochs, values, linewidth=2, label=str(name))
+        actual_values = self._inverse_actual_values_for_plot(inverse_names)
+        for actual_value in actual_values:
+            if actual_value is not None and np.isfinite(actual_value):
+                axis.axhline(actual_value, linewidth=2, linestyle=":")
+        axis.set_ylabel("Value")
+        axis.set_title("Inverse Parameters")
+    else:
+        axis.plot(epochs, tr_violation, linewidth=2, label="Train Violation")
+        axis.plot(
+            epochs,
+            val_violation,
+            linewidth=2,
+            linestyle="--",
+            label="Validation Violation",
+        )
+        axis.set_ylabel("Mean Violation")
+        axis.set_title("Violation")
+        axis.set_yscale("log")

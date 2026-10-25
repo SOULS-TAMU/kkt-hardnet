@@ -146,40 +146,44 @@ class _ExpressionDecoder:
                 raise ValueError(f"unknown saved symbolic name {node.id!r}")
             return self.symbols[node.id]
         if isinstance(node, ast.UnaryOp):
-            operand = self._node(node.operand)
-            if isinstance(node.op, ast.USub):
-                return -operand
-            if isinstance(node.op, ast.UAdd):
-                return operand
-            raise ValueError("unsupported unary operator in saved expression")
+            return self._unary(node)
         if isinstance(node, ast.BinOp):
-            left = self._node(node.left)
-            right = self._node(node.right)
-            if isinstance(node.op, ast.Add):
-                return left + right
-            if isinstance(node.op, ast.Sub):
-                return left - right
-            if isinstance(node.op, ast.Mult):
-                return left * right
-            if isinstance(node.op, ast.Div):
-                return left / right
-            if isinstance(node.op, ast.Pow):
-                return left**right
-            raise ValueError("unsupported binary operator in saved expression")
+            return self._binary(node)
         if isinstance(node, ast.Call):
-            if (
-                not isinstance(node.func, ast.Name)
-                or node.func.id not in self.functions
-            ):
-                raise ValueError("unsupported function in saved expression")
-            if len(node.args) != 1 or node.keywords:
-                raise ValueError(
-                    "saved symbolic functions require one positional argument"
-                )
-            return self.functions[node.func.id](self._node(node.args[0]))
+            return self._call(node)
         raise ValueError(
             f"unsupported syntax {type(node).__name__} in saved symbolic expression"
         )
+
+    def _unary(self, node):
+        operand = self._node(node.operand)
+        if isinstance(node.op, ast.USub):
+            return -operand
+        if isinstance(node.op, ast.UAdd):
+            return operand
+        raise ValueError("unsupported unary operator in saved expression")
+
+    def _binary(self, node):
+        left = self._node(node.left)
+        right = self._node(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.Pow):
+            return left**right
+        raise ValueError("unsupported binary operator in saved expression")
+
+    def _call(self, node):
+        if not isinstance(node.func, ast.Name) or node.func.id not in self.functions:
+            raise ValueError("unsupported function in saved expression")
+        if len(node.args) != 1 or node.keywords:
+            raise ValueError("saved symbolic functions require one positional argument")
+        return self.functions[node.func.id](self._node(node.args[0]))
 
 
 def load_symbolic_problem(spec: Mapping[str, Any]) -> Problem:

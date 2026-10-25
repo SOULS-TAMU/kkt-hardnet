@@ -83,22 +83,11 @@ def _network_primal_bounds(self, X, dtype):
     coefficient_tolerance = jnp.asarray(1e-12, dtype=dtype)
 
     for constraint in self.constraints:
-        if constraint.kind != "ineq":
+        resources = _affine_bound(constraint)
+        if resources is None:
             continue
-        residual = constraint.residual
-        if not residual.affine_in_variables:
-            continue
-        if residual.affine_coefficients is None or residual.affine_offset is None:
-            continue
-        dependencies = tuple(residual.variable_dependencies)
-        if len(dependencies) != 1:
-            continue
-
-        variable_name = dependencies[0]
+        residual, variable_name, coefficient_expression = resources
         variable_position = variable_index[variable_name]
-        coefficient_expression = residual.affine_coefficients.get(variable_name)
-        if coefficient_expression is None:
-            continue
         offset_expression = residual.affine_offset
 
         def evaluate_row(theta):
@@ -193,3 +182,23 @@ def _network_primal_output(
         backbone, parameters, X, mean, scale, dtype, gamma
     )
     return y
+
+
+def _affine_bound(constraint):
+    """Return one-variable affine bound resources, leaving other rows to PURIN."""
+    if constraint.kind != "ineq":
+        return None
+    residual = constraint.residual
+    if not residual.affine_in_variables:
+        return None
+    if residual.affine_coefficients is None or residual.affine_offset is None:
+        return None
+    dependencies = tuple(residual.variable_dependencies)
+    if len(dependencies) != 1:
+        return None
+
+    variable_name = dependencies[0]
+    coefficient_expression = residual.affine_coefficients.get(variable_name)
+    if coefficient_expression is None:
+        return None
+    return residual, variable_name, coefficient_expression

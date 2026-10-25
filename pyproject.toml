@@ -66,13 +66,13 @@ convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["optional: Flax and Orbax integration"]
+markers = ["optional: Flax and Orbax integration", "coverage: extended numerical and workflow contracts"]
 
 [tool.coverage.run]
 branch = true
 source = ["kkthn"]
 
 [tool.coverage.report]
-fail_under = 58
+fail_under = 90
 show_missing = true
 precision = 2

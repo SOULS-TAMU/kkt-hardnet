@@ -165,3 +165,12 @@ wheels; these checks exercise CPU execution. Coverage combines statements and
 branches across the whole frontend. Optional Flax and Orbax integrations are
 tested separately. See the [validation policy](.github/validation/README.md)
 for numerical tolerances, current quality baselines and performance limitations.
+
+### Quality gates
++
++CI requires at least **90% combined statement and branch coverage** over the
++entire frontend, cognitive complexity of at most **15** per function, and zero
++errors under the documented type-check policy. API snapshots, numerical
++references, exact checkpoint resume and isolated metadata inference protect
++compatibility. See the [validation policy](.github/validation/README.md).
++

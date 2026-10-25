@@ -68,7 +68,7 @@ jobs:
           python -m pip install ".[dev]" pytest-cov
           python -m pip check
       - run: python .github/scripts/environment.py
-      - run: python -m pytest -q -m "not optional"
+      - run: python -m pytest -q -m "not optional and not coverage"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: environment-${{ matrix.os }}-py${{ matrix.python }}-${{ matrix.jax }}

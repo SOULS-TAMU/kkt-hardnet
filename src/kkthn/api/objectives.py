@@ -133,18 +133,7 @@ def prepare_objective_gradient(
     if not objective_name:
         raise ValueError("Objective cache name must not be empty.")
 
-    if state.objective_gradient_fns is None:
-        state.objective_gradient_fns = {}
-
-    existing = state.objective_gradient_fns.get(objective_name)
-    if existing is not None and not isinstance(existing, Mapping):
-        # Compatibility with the earlier single-function cache format.
-        existing = {"single": existing, "batch": None, "batch_size": state.batch_size}
-
-    if overwrite or existing is None:
-        entry = {"single": None, "batch": None, "batch_size": state.batch_size}
-    else:
-        entry = dict(existing)
+    entry = _objective_cache_entry(state, objective_name, overwrite)
 
     needs_single = entry.get("single") is None
     needs_batch = bool(compile_batch and entry.get("batch") is None)
@@ -229,21 +218,7 @@ def objective_gradient(
             objective, name=name, method=selected, verbose=verbose, compile_batch=batch
         )
 
-    functions = state.objective_gradient_fns or {}
-    if objective_name not in functions:
-        raise KeyError(f"Objective gradient {objective_name!r} is not prepared.")
-
-    entry = functions[objective_name]
-    if not isinstance(entry, Mapping):
-        entry = {"single": entry, "batch": None, "batch_size": state.batch_size}
-
-    single_compiled = entry.get("single")
-    batch_compiled = entry.get("batch")
-
-    if single_compiled is None:
-        raise RuntimeError(
-            f"Single objective gradient {objective_name!r} is not compiled."
-        )
+    single_compiled, batch_compiled = _objective_functions(state, objective_name)
 
     X = np.asarray(values, dtype=np.dtype(state.dtype))
     squeeze = X.ndim == 1
@@ -267,51 +242,107 @@ def objective_gradient(
                 "compile_batch=True) first."
             )
 
-        objective_rows = []
-        prediction_rows = []
-        gradient_rows = []
-
-        for xb, _yb, _mask, physical_count in _fixed_batches(
-            X, None, state.batch_size, shuffle=False, seed=0
-        ):
-            (objective_device, prediction_device, gradient_device) = batch_compiled(
-                jnp.asarray(xb, dtype=state.dtype)
-            )
-
-            (objective_host, prediction_host, gradient_host) = jax.device_get(
-                (objective_device, prediction_device, gradient_device)
-            )
-
-            objective_rows.append(np.asarray(objective_host)[:physical_count])
-            prediction_rows.append(np.asarray(prediction_host)[:physical_count])
-            gradient_rows.append(np.asarray(gradient_host)[:physical_count])
-
-        objective_values = np.concatenate(objective_rows, axis=0)
-        predictions = np.concatenate(prediction_rows, axis=0)
-        gradients = np.concatenate(gradient_rows, axis=0)
-    else:
-        values_device = []
-        predictions_device = []
-        gradients_device = []
-
-        for row in X:
-            (value_device, prediction_device, gradient_device) = single_compiled(
-                jnp.asarray(row, dtype=state.dtype)
-            )
-            values_device.append(value_device)
-            predictions_device.append(prediction_device)
-            gradients_device.append(gradient_device)
-
-        (values_host, predictions_host, gradients_host) = jax.device_get(
-            (values_device, predictions_device, gradients_device)
+        objective_values, predictions, gradients = _objective_batch_rows(
+            X, state, batch_compiled
         )
-
-        objective_values = np.stack([np.asarray(value) for value in values_host])
-        predictions = np.stack([np.asarray(value) for value in predictions_host])
-        gradients = np.stack([np.asarray(value) for value in gradients_host])
+    else:
+        objective_values, predictions, gradients = _objective_single_rows(
+            X, state, single_compiled
+        )
 
     if squeeze:
         return ObjectiveGradientResult(
             objective_values[0], predictions[0], gradients[0]
         )
     return ObjectiveGradientResult(objective_values, predictions, gradients)
+
+
+def _objective_cache_entry(state, objective_name, overwrite):
+    """Normalize the retained single/batch cache schema before compiling missing work."""
+    if state.objective_gradient_fns is None:
+        state.objective_gradient_fns = {}
+
+    existing = state.objective_gradient_fns.get(objective_name)
+    if existing is not None and not isinstance(existing, Mapping):
+        # Compatibility with the earlier single-function cache format.
+        existing = {"single": existing, "batch": None, "batch_size": state.batch_size}
+
+    if overwrite or existing is None:
+        entry = {"single": None, "batch": None, "batch_size": state.batch_size}
+    else:
+        entry = dict(existing)
+
+    return entry
+
+
+def _objective_batch_rows(X, state, batch_compiled):
+    """Collect physical batch rows, omitting padding after the existing VJP."""
+    objective_rows = []
+    prediction_rows = []
+    gradient_rows = []
+
+    for xb, _yb, _mask, physical_count in _fixed_batches(
+        X, None, state.batch_size, shuffle=False, seed=0
+    ):
+        (objective_device, prediction_device, gradient_device) = batch_compiled(
+            jnp.asarray(xb, dtype=state.dtype)
+        )
+
+        (objective_host, prediction_host, gradient_host) = jax.device_get(
+            (objective_device, prediction_device, gradient_device)
+        )
+
+        objective_rows.append(np.asarray(objective_host)[:physical_count])
+        prediction_rows.append(np.asarray(prediction_host)[:physical_count])
+        gradient_rows.append(np.asarray(gradient_host)[:physical_count])
+
+    objective_values = np.concatenate(objective_rows, axis=0)
+    predictions = np.concatenate(prediction_rows, axis=0)
+    gradients = np.concatenate(gradient_rows, axis=0)
+    return objective_values, predictions, gradients
+
+
+def _objective_single_rows(X, state, single_compiled):
+    """Collect scalar VJP results with one host synchronization."""
+    values_device = []
+    predictions_device = []
+    gradients_device = []
+
+    for row in X:
+        (value_device, prediction_device, gradient_device) = single_compiled(
+            jnp.asarray(row, dtype=state.dtype)
+        )
+        values_device.append(value_device)
+        predictions_device.append(prediction_device)
+        gradients_device.append(gradient_device)
+
+    (values_host, predictions_host, gradients_host) = jax.device_get(
+        (values_device, predictions_device, gradients_device)
+    )
+
+    objective_values = np.stack([np.asarray(value) for value in values_host])
+    predictions = np.stack([np.asarray(value) for value in predictions_host])
+    gradients = np.stack([np.asarray(value) for value in gradients_host])
+
+    return objective_values, predictions, gradients
+
+
+def _objective_functions(state, objective_name):
+    """Resolve a prepared objective or report the existing cache validation errors."""
+    functions = state.objective_gradient_fns or {}
+    if objective_name not in functions:
+        raise KeyError(f"Objective gradient {objective_name!r} is not prepared.")
+
+    entry = functions[objective_name]
+    if not isinstance(entry, Mapping):
+        entry = {"single": entry, "batch": None, "batch_size": state.batch_size}
+
+    single_compiled = entry.get("single")
+    batch_compiled = entry.get("batch")
+
+    if single_compiled is None:
+        raise RuntimeError(
+            f"Single objective gradient {objective_name!r} is not compiled."
+        )
+
+    return single_compiled, batch_compiled
