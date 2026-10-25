@@ -4,6 +4,10 @@
 [![Validation](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml?query=branch%3Adevelopment)
 [![CodeQL](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml?query=branch%3Adevelopment)
 [![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-development/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-development)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/development/LICENSE)
+[![Tested Python: 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-blue?logo=python&logoColor=white)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
+[![CPU platforms: Linux, Windows, macOS](https://img.shields.io/badge/CPU_platforms-Linux%20%7C%20Windows%20%7C%20macOS-blue)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
+[![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Adevelopment)
 
 A constrained neural network frontend that projects predictions onto nonlinear equality and inequality constraints.
 
