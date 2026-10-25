@@ -9,11 +9,17 @@
 [![CPU platforms: Linux, Windows, macOS](https://img.shields.io/badge/CPU_platforms-Linux%20%7C%20Windows%20%7C%20macOS-blue)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
 [![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Adevelopment)
 
-A constrained neural network frontend that projects predictions onto nonlinear equality and inequality constraints.
+A JAX framework for constrained surrogate modeling, inverse parameter
+estimation and unsupervised optimization with differentiable hard projections.
 
-## Installation
+The frontend defines the problem and task policy.
+[OHAGI](https://github.com/SOULS-TAMU/Ohagi) provides the shared learning and
+inference engine; [PURIN](https://github.com/SOULS-TAMU/Purin) provides projection
+algorithms and sparse kernels. Existing benchmark APIs remain supported.
 
-Install this development version with its tested shared dependencies:
+## Install
+
+Install the development version with its tested shared dependencies:
 
 ```shell
 python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
@@ -21,160 +27,103 @@ python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f6
 python -m pip install "git+https://github.com/SOULS-TAMU/kkt-hardnet.git@development"
 ```
 
-Python 3.10 or later is required. Availability on a particular Python version
-and accelerator also depends on JAX and optional dependencies providing wheels
-for that platform. Install accelerator-enabled JAX using the
-[official JAX installation guide](https://docs.jax.dev/en/latest/installation.html).
+See [installation options](docs/INSTALL.md) for editable installs and optional
+Flax backbones/Orbax checkpoints.
 
-## Shared architecture
+## Python versions and platforms
 
-PURIN owns problem compilation, projection composition, sparse operators,
-automatic differentiation, and numerical solvers. OHAGI owns backbone adapters,
-the projected model, generic losses, gradient/update construction, batch and
-epoch execution, checkpoint transport, and deployment runtime.
+Python **3.10–3.14** is tested on **Linux, Windows and macOS**, with additional
+Linux ARM64 and pinned JAX baseline checks. Package installation and optional
+Flax/Orbax integrations are tested across all three OSes. These are CPU checks;
+accelerator support follows the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html).
 
-Each frontend owns its problem API, task loss, defaults, reporting, training
-phase policy, and shared JAX serialization adapters. DAEHN also owns differential
-processing, discretization, and reconstruction in `daehn.dae`. Frontends supply
-epoch plans to `ohagi.training.Engine`; they do not implement separate numerical
-training loops. The engine supports host batches and compiled JAX scans so
-existing execution and precision policies remain intact.
+## Basic API
 
-OHAGI and PURIN never import a frontend. Framework adapters supply problem
-definitions and pure prediction graphs. DAEHN and NLPOPTNet expose their current public interfaces directly, without
-legacy implementation trees or alias catalogs.
-Metadata inference loads through OHAGI without importing frontend code.
-
-## Workflow
-
-Keep the existing `KKTHardNet` and problem-builder API: define parameters,
-variables and constraints, select the backbone and projection, provide the
-dataset, and train. The distance projection uses an identity quadratic metric.
-Custom JAX backbones remain supported through the existing callbacks. The
-functional MLP is the default; Flax backbones and Orbax checkpoints are optional.
-The existing resume interface restores optimizer state as well as weights.
-
-See the [upstream modeling tutorial](https://kkt-hardnet.readthedocs.io/en/latest/)
-for problem definitions and benchmark conventions. Historical documentation
-may describe deployment backends that are not part of this stack.
-## Define a constrained surrogate
+### Constrained surrogate
 
 ```python
-from kkthn import KKTHardNet, Projection, MLP, Loss
+from pathlib import Path
+import numpy as np
+from kkthn import KKTHardNet
 
-projection = Projection(method="chambolle-pock")
-p = projection.add_parameter(["p"])
-y = projection.add_variable(["u", "v"])
-projection.constraints.add(y.u + y.v == p.p, y.u >= 0, y.v >= 0)
-model = KKTHardNet(
-    "surrogate", MLP(hidden_sizes=(64, 64)), Loss.mse(), projection,
-    name="example", train={"epochs": 100, "batch_size": 32})
-# Provide a CSV with columns p, u, v, then train:
-model.dataset(parameters="data.csv", variables="data.csv")
+p_values = np.linspace(0.4, 1.2, 8)
+data = Path("data.csv")
+np.savetxt(data, np.column_stack((p_values, 0.6*p_values, 0.4*p_values)),
+           delimiter=",", header="p,u,v", comments="")
+
+model = KKTHardNet(name="sum_model", train={
+    "epochs": 2, "batch_size": 2, "seed": 7,
+    "pretrain": False, "print_every": 0,
+})
+p = model.add_parameter(["p"])
+y = model.add_variable(["u", "v"])
+model.constraints.add(y.u + y.v == p.p, y.u >= 0, y.v >= 0)
+model.dataset(parameters=data, variables=data)
 result = model.model()
+prediction = model.predict([0.7])
 ```
 
-Use `backend="flax"` on `MLP` to select the optional Flax implementation.
-Dataset preparation and training options retain their existing meanings.
+### Optimization and inverse estimation
 
-## Export and repeated inference
+| Task | Required resources | Entry point |
+|---|---|---|
+| Surrogate | Parameters and observed variables | `model.model()` |
+| Unsupervised optimization | Parameters and symbolic objective | `model.optimize()` |
+| Inverse estimation | Parameters, observations and unknown coefficients | `model.estimate()` |
 
-Export a trained frontend model once:
+See [problem definitions](docs/PROBLEM.md) for examples and backbone options.
+
+## Load and predict
+
+Reload the full model returned by training:
+
+```python
+model = KKTHardNet().load(result["metadata_path"])
+prediction = model.predict([0.7])
+```
+
+For repeated single-instance deployment, export once:
 
 ```python
 model.export_inference("deployment/metadata.json")
 ```
 
-Load through the shared interface:
+The shared loader is available to both frameworks:
 
 ```python
 from ohagi.inference import load
 
 predictor = load("deployment/metadata.json")
-y = predictor(x)
+prediction = predictor.predict([0.7])
 ```
 
-Supply only the metadata path to the loader; keep its referenced
-`.jax_export` artifact with the bundle. Metadata alone does not contain the
-weights or executable graph. Loading prepares and warms a JAX function for
-repeated single-instance calls. Reuse the loaded predictor across calls;
-loading and compilation are one-time costs. `predictor.predict_jax(x)` keeps
-the result as a JAX array, while `predictor.predict(x)` returns synchronized
-NumPy output. Exported inference does not require Flax, Orbax, or frontend
-problem factories. The supported deployment backend is JAX.
+Pass the metadata path and keep its referenced `.jax_export` file with the
+bundle. Load once and reuse the predictor. `predict` returns synchronized NumPy
+output; `predict_jax` returns a JAX array. See [inference](docs/INFERENCE.md).
 
-## Packaging and development
+## Data convention
 
-This is a pure Python package with a `src` layout and a PEP 517 build defined
-in `pyproject.toml`. Build with `python -m build`; no parallel `setup.py` or
-custom wheel script is needed. Contributions should preserve the shared
-engine and benchmark call signatures. See [CONTRIBUTING.md](CONTRIBUTING.md),
-[CHANGELOG.md](CHANGELOG.md), [CITATION.cff](CITATION.cff), and [NOTICE](NOTICE).
+CSV headers must match declared parameter and variable names. Surrogate and
+inverse tasks use parameter and variable observations; optimization uses only
+parameter observations. One CSV may contain both sets of columns.
 
-## License
+## Examples and documentation
 
-This project is licensed under the [Apache License, Version 2.0](LICENSE).
+- [Install](docs/INSTALL.md): dependencies, optional integrations and packaging.
+- [Problem definitions](docs/PROBLEM.md): modeling, backbones and training.
+- [Inference](docs/INFERENCE.md): export, model bundles and repeated prediction.
+- [Version notes](docs/VERSION.md) and [changelog](CHANGELOG.md): development changes.
+- [Contributing](CONTRIBUTING.md) and [validation policy](.github/validation/README.md): development checks.
 
-Original authorship and applicable upstream notices are retained in [NOTICE](NOTICE).
+CI requires **90% combined statement and branch coverage**, cognitive complexity
+at most **15** per function and the documented type-check policy. API snapshots,
+numerical regression and exact checkpoint-resume checks protect compatibility.
 
-## Package layout and model format
+The [historical tutorials](https://kkt-hardnet.readthedocs.io/en/latest/) provide
+additional modeling examples. Use this branch's guides for current installation
+and JAX deployment.
 
-Each frontend uses the same source organization:
+## Citation and license
 
-```text
-src/<frontend>/
-├── __init__.py
-├── _aliases.py          # Retained only in KKTHN
-├── api/                 # Problem definitions and task policies
-└── serialization/       # Graph/definition adapters to OHAGI
-```
-
-DAEHN owns differential processing in `daehn.api.differential`; existing
-`from daehn.dae import ...` imports remain supported. There are no physical
-`_legacy`, `_compat`, `_api`, or top-level `adapters` implementation directories
-in either DAEHN or NLPOPTNet.
-
-All full-model saves and readers use OHAGI's `ohagi_model_v1` metadata schema and
-`ohagi_pytree_npz_v1` numeric parameter codec. Deployment uses the same shared
-single-instance JAX export/load interface for all three frontends:
-
-```python
-model.export_inference("deployment/metadata.json")
-from ohagi.inference import load
-predictor = load("deployment/metadata.json")
-y = predictor(x)
-```
-
-Keep the referenced `.jax_export` graph alongside `metadata.json`. Deployment
-bundles do not need frontend code, Flax, or Orbax. Full-model saves additionally
-retain `weights.npz` and formulation data needed by the frontend's model reload
-API; Orbax training checkpoints remain separate.
-
-New saves do not produce `model.json`, duplicate backbone/model-weight archives,
-standalone `.stablehlo` derivative files, or export-manifest sidecars. There are
-no native/portable save-format switches. JAX uses StableHLO internally through
-`jax.export`; no standalone StableHLO package or separate export backend is
-required. JAX export's `flatbuffers` and `absl-py` dependencies remain required.
-
-Model loaders accept only shared OHAGI JAX bundles. Legacy JSON/NPZ model
-readers, format-specific plugins, and graph reconstruction fallbacks are removed. The two KKTHN
-benchmark imports of `load_native_predictor` retain an import-only rejection
-shim so the scripts stay unchanged; no native compiler or native writer exists.
-
-## Compatibility and checks
-
-Development CI tests Python 3.10–3.14 on Linux, Windows and macOS, plus Linux
-ARM64 and a pinned JAX baseline. Accelerator support follows JAX's available
-wheels; these checks exercise CPU execution. Coverage combines statements and
-branches across the whole frontend. Optional Flax and Orbax integrations are
-tested separately. See the [validation policy](.github/validation/README.md)
-for numerical tolerances, current quality baselines and performance limitations.
-
-### Quality gates
-+
-+CI requires at least **90% combined statement and branch coverage** over the
-+entire frontend, cognitive complexity of at most **15** per function, and zero
-+errors under the documented type-check policy. API snapshots, numerical
-+references, exact checkpoint resume and isolated metadata inference protect
-+compatibility. See the [validation policy](.github/validation/README.md).
-+
+Use [CITATION.bib](CITATION.bib) for BibTeX or GitHub's **Cite this repository**
+menu. Licensed under [Apache 2.0](LICENSE); attribution is retained in [NOTICE](NOTICE).
