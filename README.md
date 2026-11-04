@@ -1,45 +1,53 @@
 # KKT-HardNet
 
+**Learn surrogate, inverse and optimization models with hard constraint projections in JAX.**
+
 [![CI](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
 [![Validation](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml?query=branch%3Adevelopment)
 [![CodeQL](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml?query=branch%3Adevelopment)
-[![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-development/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-development)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/development/LICENSE)
-[![Tested Python: 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-blue?logo=python&logoColor=white)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
-[![CPU platforms: Linux, Windows, macOS](https://img.shields.io/badge/CPU_platforms-Linux%20%7C%20Windows%20%7C%20macOS-blue)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Adevelopment)
 [![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=development)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Adevelopment)
+[![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-development/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-development)
 
-A JAX framework for constrained surrogate modeling, inverse parameter
-estimation and unsupervised optimization with differentiable hard projections.
+[![Python 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-3776AB?logo=python&logoColor=white)](.github/workflows/ci.yml)
+[![CPU platforms](https://img.shields.io/badge/CPU-Linux%20%7C%20Windows%20%7C%20macOS-555555)](.github/workflows/ci.yml)
+[![JAX](https://img.shields.io/badge/Powered_by-JAX-8A2BE2)](https://docs.jax.dev/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
+[![Citation: BibTeX](https://img.shields.io/badge/Cite-BibTeX-6F4E37)](CITATION.bib)
 
-The frontend defines the problem and task policy.
-[OHAGI](https://github.com/SOULS-TAMU/Ohagi) provides the shared learning and
-inference engine; [PURIN](https://github.com/SOULS-TAMU/Purin) provides projection
-algorithms and sparse kernels. Existing benchmark APIs remain supported.
+Define parameters, variables, constraints and a learning task through a compact
+frontend. OHAGI supplies one shared training and inference engine; PURIN supplies
+the projection algorithms that enforce the declared constraints.
 
-## Install
+- **Three tasks:** constrained surrogate modeling, inverse parameter estimation
+  and unsupervised optimization.
+- **Differentiable projections:** affine and smooth nonlinear equalities,
+  inequalities and bounds, using the appropriate PURIN solver.
+- **Flexible backbones:** functional JAX networks, custom adapters and optional Flax.
+- **Reusable deployment:** export once, load from `metadata.json`, and predict repeatedly.
 
-Install the development version with its tested shared dependencies:
+[Installation](#installation) · [Basic API](#basic-api) · [Load and predict](#load-and-predict) · [Documentation](#documentation) · [Contributing](#contributing) · [Citation](#citation)
+
+## Installation
+
+This README documents the **development branch**. Install its source packages
+in dependency order with Python 3.10 or newer:
 
 ```shell
-python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
-python -m pip install "git+https://github.com/SOULS-TAMU/kkt-hardnet.git@development"
+python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@development"
+python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@development"
+python -m pip install "kkt-hardnet @ git+https://github.com/SOULS-TAMU/kkt-hardnet.git@development"
 ```
 
-See [installation options](docs/INSTALL.md) for editable installs and optional
-Flax backbones/Orbax checkpoints.
-
-## Python versions and platforms
-
-Python **3.10–3.14** is tested on **Linux, Windows and macOS**, with additional
-Linux ARM64 and pinned JAX baseline checks. Package installation and optional
-Flax/Orbax integrations are tested across all three OSes. These are CPU checks;
-accelerator support follows the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html).
+The distribution name is `kkt-hardnet`; the Python import is `kkthn`.
+For editable installs and optional Flax/Orbax integrations, see
+[installation options](docs/INSTALL.md).
 
 ## Basic API
 
 ### Constrained surrogate
+
+This self-contained example creates a small CSV and learns two nonnegative
+outputs whose sum matches the input parameter:
 
 ```python
 from pathlib import Path
@@ -63,67 +71,106 @@ result = model.model()
 prediction = model.predict([0.7])
 ```
 
-### Optimization and inverse estimation
+### Choose a learning task
 
-| Task | Required resources | Entry point |
-|---|---|---|
-| Surrogate | Parameters and observed variables | `model.model()` |
-| Unsupervised optimization | Parameters and symbolic objective | `model.optimize()` |
-| Inverse estimation | Parameters, observations and unknown coefficients | `model.estimate()` |
+| Task | Data / definition | Entry point |
+| --- | --- | --- |
+| Surrogate modeling | Parameters and observed variables | `model.model()` |
+| Unsupervised optimization | Parameters and a symbolic objective | `model.optimize()` |
+| Inverse estimation | Observations and unknown coefficients | `model.estimate()` |
 
-See [problem definitions](docs/PROBLEM.md) for examples and backbone options.
+See [problem definitions](docs/PROBLEM.md) for objective functions, unknown
+parameters, backbone choices and projection configuration.
 
 ## Load and predict
 
-Reload the full model returned by training:
+Reload a trained full model and export its deployment bundle:
 
 ```python
 model = KKTHardNet().load(result["metadata_path"])
 prediction = model.predict([0.7])
-```
-
-For repeated single-instance deployment, export once:
-
-```python
 model.export_inference("deployment/metadata.json")
 ```
 
-The shared loader is available to both frameworks:
+The same deployment bundle also works through OHAGI:
 
 ```python
 from ohagi.inference import load
 
 predictor = load("deployment/metadata.json")
-prediction = predictor.predict([0.7])
+for value in [0.4, 0.7, 1.0]:
+    prediction = predictor.predict([value])
 ```
 
-Pass the metadata path and keep its referenced `.jax_export` file with the
-bundle. Load once and reuse the predictor. `predict` returns synchronized NumPy
-output; `predict_jax` returns a JAX array. See [inference](docs/INFERENCE.md).
+Keep the referenced `.jax_export` file with `metadata.json`. Load once and reuse
+the predictor. `predict` returns synchronized NumPy values; `predict_jax` keeps
+outputs on the JAX device. Deployment uses the shared JAX pathway.
 
 ## Data convention
 
-CSV headers must match declared parameter and variable names. Surrogate and
-inverse tasks use parameter and variable observations; optimization uses only
-parameter observations. One CSV may contain both sets of columns.
+CSV headers match the declared parameter and variable names. Surrogate and
+inverse tasks use parameter and variable observations; optimization uses
+parameter observations. A single CSV may contain both sets of columns.
 
-## Examples and documentation
+## The HardNet stack
 
-- [Install](docs/INSTALL.md): dependencies, optional integrations and packaging.
-- [Problem definitions](docs/PROBLEM.md): modeling, backbones and training.
-- [Inference](docs/INFERENCE.md): export, model bundles and repeated prediction.
-- [Version notes](docs/VERSION.md) and [changelog](CHANGELOG.md): development changes.
-- [Contributing](CONTRIBUTING.md) and [validation policy](.github/validation/README.md): development checks.
+- **[KKTHN](https://github.com/SOULS-TAMU/kkt-hardnet/tree/development),
+  [DAEHN](https://github.com/SOULS-TAMU/dae-hardnet/tree/development) and
+  [NLPOPTNet](https://github.com/SOULS-TAMU/nlpoptnet)** supply problem formulations
+  and framework-specific processing.
+- **[OHAGI](https://github.com/SOULS-TAMU/Ohagi/tree/development)** composes models,
+  runs the shared learning engine, and handles checkpoints and JAX deployment.
+- **[PURIN](https://github.com/SOULS-TAMU/Purin/tree/development)** owns projection
+  problems, numerical solvers, sparse kernels and projection differentiation.
 
-CI requires **90% combined statement and branch coverage**, cognitive complexity
-at most **15** per function and the documented type-check policy. API snapshots,
-numerical regression and exact checkpoint-resume checks protect compatibility.
+## Compatibility and validation
 
-The [historical tutorials](https://kkt-hardnet.readthedocs.io/en/latest/) provide
-additional modeling examples. Use this branch's guides for current installation
-and JAX deployment.
+The CPU CI matrix covers **Python 3.10–3.14** on Linux, Windows and macOS,
+plus Linux ARM64 on Python 3.13. It exercises current compatible JAX releases
+and JAX 0.6.2 on Python 3.12. See the [workflow](.github/workflows/ci.yml)
+for exact environments; accelerator installation follows the
+[JAX guide](https://docs.jax.dev/en/latest/installation.html).
 
-## Citation and license
+- **CI:** tests, distribution builds and installation checks.
+- **Validation:** public APIs, numerical references, documentation and code quality.
+- **Coverage:** at least **90% combined statement and branch coverage**; the badge
+  links to the measured report for this branch.
+- **Security:** CodeQL analysis and dependency review.
 
-Use [CITATION.bib](CITATION.bib) for BibTeX or GitHub's **Cite this repository**
-menu. Licensed under [Apache 2.0](LICENSE); attribution is retained in [NOTICE](NOTICE).
+The frontend validation policy also checks API compatibility, checkpoint resume,
+types, dependency boundaries and cognitive complexity. See
+[validation details](.github/validation/README.md).
+
+## Documentation
+
+| Guide | Contents |
+| --- | --- |
+| [Installation](docs/INSTALL.md) | Source installs, optional integrations and packaging |
+| [Problem definitions](docs/PROBLEM.md) | Modeling, backbones and training |
+| [Inference](docs/INFERENCE.md) | Export, loading and repeated prediction |
+| [Version notes](docs/VERSION.md) | Current development behavior |
+| [Changelog](CHANGELOG.md) | Recorded changes |
+
+The [historical tutorials](https://kkt-hardnet.readthedocs.io/en/latest/)
+provide additional modeling examples. Use this branch's guides for the current
+shared-engine installation and model format.
+
+## Contributing
+
+Bug reports, examples and focused pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup, numerical checks and compatibility
+requirements. Keep generated results, environments and checkpoints out of Git.
+
+## Citation
+
+Use [CITATION.bib](CITATION.bib) for a copyable BibTeX entry or GitHub's
+**Cite this repository** menu for [citation metadata](CITATION.cff).
+For the method, also cite
+[Physics-informed neural networks with hard nonlinear equality and inequality constraints](https://doi.org/10.1016/j.compchemeng.2025.109418).
+
+## License
+
+[Apache License 2.0](LICENSE). Authorship and upstream attribution are recorded
+in [AUTHORS](AUTHORS) and [NOTICE](NOTICE).
+
+[Changelog](CHANGELOG.md) · [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
