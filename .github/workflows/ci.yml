@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [development]
+    branches: [main, development]
   pull_request:
-    branches: [development]
+    branches: [main, development]
   workflow_dispatch:
 permissions:
   contents: read
@@ -151,9 +151,9 @@ jobs:
           python -m pip check
       - run: python -m pytest tests/test_optional.py -q
   coverage:
-    name: Publish measured development coverage
+    name: Publish measured branch coverage
     needs: [quality, tests, full-coverage, package, optional]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -170,6 +170,6 @@ jobs:
       - uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: codex/coverage-development
+          publish_branch: ${{ github.ref_name == 'main' && 'codex/coverage-main' || 'codex/coverage-development' }}
           publish_dir: coverage-site
-          commit_message: Update development coverage
+          commit_message: Update ${{ github.ref_name }} coverage

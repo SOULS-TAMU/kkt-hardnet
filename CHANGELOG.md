@@ -2,6 +2,9 @@
 
 ## 2.0.0 — Unreleased
 
+- Promote the shared-engine implementation to `main`; preserve the previous main in `v1.0.1`.
+- Run CI, validation, security and dependency checks on both main and development.
+
 - Set the package version to `2.0.0` and require OHAGI/PURIN `>=1.0.0,<2.0.0`.
 
 - Use the renamed `ohagi` and `purin` dependencies without changing frontend APIs.

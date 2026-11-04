@@ -1,9 +1,9 @@
 name: Validation
 on:
   push:
-    branches: [development]
+    branches: [main, development]
   pull_request:
-    branches: [development]
+    branches: [main, development]
   workflow_dispatch:
 permissions:
   contents: read
@@ -101,7 +101,7 @@ jobs:
             --exclude '^https://img.shields.io/'
             --exclude '^https://raw.githubusercontent.com/'
             --exclude '^https://github.com/.*/actions/'
-            --exclude '^https://github.com/.*/tree/codex/coverage-development'
+            --exclude '^https://github.com/.*/tree/codex/coverage-(main|development)'
             --accept '200..=299,429'
             README.md CONTRIBUTING.md CHANGELOG.md
           fail: true
