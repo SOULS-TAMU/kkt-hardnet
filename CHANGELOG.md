@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 — Unreleased
+
+- Set the package version to `2.0.0` and require OHAGI/PURIN `>=1.0.0,<2.0.0`.
 
 - Use the renamed `ohagi` and `purin` dependencies without changing frontend APIs.
 

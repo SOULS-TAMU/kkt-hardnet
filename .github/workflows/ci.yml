@@ -63,8 +63,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install pinned shared engine and candidate
         run: |
-          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-          python -m pip install "ohagi[plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@5cbbd0ca41cc83069da6144abcdbe85164f59b94"
+          python -m pip install "ohagi[plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@65beffeb2e26d90af147d01c36b3daa2e47e947f"
           python -m pip install ".[dev]" pytest-cov
           python -m pip check
       - run: python .github/scripts/environment.py
@@ -84,8 +84,8 @@ jobs:
           python-version: '3.12'
       - name: Install pinned shared engine and candidate
         run: |
-          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@5cbbd0ca41cc83069da6144abcdbe85164f59b94"
+          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@65beffeb2e26d90af147d01c36b3daa2e47e947f"
           python -m pip install ".[dev]" pytest-cov
           python -m pip check
       - run: python -m pytest -q --cov=kkthn --cov-branch --cov-report=term-missing --cov-report=xml --cov-report=json
@@ -111,8 +111,8 @@ jobs:
           python-version: '3.12'
       - name: Install pinned shared engine and candidate
         run: |
-          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-          python -m pip install "ohagi[plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@5cbbd0ca41cc83069da6144abcdbe85164f59b94"
+          python -m pip install "ohagi[plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@65beffeb2e26d90af147d01c36b3daa2e47e947f"
           python -m pip install ".[dev]" pytest-cov
           python -m pip check
       - run: python -m pip install build twine
@@ -145,8 +145,8 @@ jobs:
         run: Set-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -Value 1
       - name: Install pinned shared engine and candidate
         run: |
-          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
+          python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@5cbbd0ca41cc83069da6144abcdbe85164f59b94"
+          python -m pip install "ohagi[flax,orbax,optax,plotting] @ git+https://github.com/SOULS-TAMU/Ohagi.git@65beffeb2e26d90af147d01c36b3daa2e47e947f"
           python -m pip install ".[dev]" pytest-cov
           python -m pip check
       - run: python -m pytest tests/test_optional.py -q
