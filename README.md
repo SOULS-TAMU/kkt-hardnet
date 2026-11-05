@@ -31,14 +31,26 @@ the projection algorithms that enforce the declared constraints.
 
 ## Installation
 
-Requires **Python 3.10 or newer**. Install from PyPI:
+Requires **Python 3.10 or newer**. Install the latest compatible release from PyPI:
 
 ```shell
 python -m pip install kkt-hardnet
 ```
 
+To update an existing installation:
+
+```shell
+python -m pip install --upgrade kkt-hardnet
+```
+
+OHAGI and PURIN are installed automatically. To install both frontends together:
+
+```shell
+python -m pip install kkt-hardnet daehn
+```
+
 The distribution name is `kkt-hardnet`; the Python import is `kkthn`.
-For editable installs and optional Flax/Orbax integrations, see
+For source/editable installs and optional Flax/Orbax integrations, see
 [installation options](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/INSTALL.md).
 
 ## Basic API
