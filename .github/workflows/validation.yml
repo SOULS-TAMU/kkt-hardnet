@@ -19,6 +19,17 @@ defaults:
   run:
     shell: bash
 jobs:
+  release-consistency:
+    name: Release metadata and artifact policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.12'
+      - uses: SOULS-TAMU/Ohagi/.github/actions/release-check@0bec7e86f5e26a2afa0ae8326aaf252cff2fe50c
+
   api:
     name: Public API compatibility
     runs-on: ubuntu-latest

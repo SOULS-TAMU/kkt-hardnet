@@ -10,6 +10,20 @@ Use the existing project's Publishing settings for `kkt-hardnet`; use pending
 publishers for the first PURIN, OHAGI and DAEHN releases. No long-lived API token
 is stored in these repositories.
 
+## Consistency gates
+
+The shared release check requires agreement between `pyproject.toml`, literal
+runtime `__version__` values, CFF/BibTeX citations and the versioned changelog.
+Release dates must agree before publication; an intended tag must be `v<version>`.
+The built wheel and sdist must agree on name, version, Apache-2.0 license and
+Python requirement, include LICENSE/NOTICE, and contain no direct dependency URLs.
+Publishing an existing package-index version is rejected before the upload job.
+Negative tests prove that version/tag mismatches and unreleased entries fail.
+
+GitHub release tags identify the original PyPI publishing commit; repository-only
+changes after publication belong under `Unreleased`. Existing release tags and
+PyPI files are never moved or overwritten.
+
 ## Release sequence
 
 1. Publish PURIN, then OHAGI, then KKTHN and DAEHN.
