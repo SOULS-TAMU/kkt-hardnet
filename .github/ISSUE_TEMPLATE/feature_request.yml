@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest an improvement to the library or documentation
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and use case
+      description: Describe what you need and why current behavior is insufficient
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include API examples, alternatives and compatibility considerations
+    validations:
+      required: true

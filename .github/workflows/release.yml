@@ -48,9 +48,10 @@ jobs:
           artifact-directory: dist
           tag: v${{ steps.metadata.outputs.version }}
       - name: Check installed candidate before upload
-        run: |
-          python .github/scripts/package_install.py --version "${{ steps.metadata.outputs.version }}" --local-dir dist
-          python .github/scripts/package_smoke.py --version "${{ steps.metadata.outputs.version }}"
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ steps.metadata.outputs.version }}"
+          local-directory: dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-distributions
@@ -76,10 +77,10 @@ jobs:
           name: release-distributions
           path: dist
       - name: Verify the candidate wheel before upload
-        run: |
-          python -m pip install --upgrade pip
-          python .github/scripts/package_install.py --version "${{ needs.build.outputs.version }}" --local-dir dist
-          python .github/scripts/package_smoke.py --version "${{ needs.build.outputs.version }}"
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ needs.build.outputs.version }}"
+          local-directory: dist
 
   publish:
     needs: [build, candidate-python315]
@@ -120,10 +121,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install published stack wheels and run real examples
-        run: |
-          python -m pip install --upgrade pip
-          python .github/scripts/package_install.py --version "${{ needs.build.outputs.version }}"
-          python .github/scripts/package_smoke.py --version "${{ needs.build.outputs.version }}"
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ needs.build.outputs.version }}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -143,9 +143,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
-      - name: Install the previous distribution, then upgrade from PyPI
+      - name: Install previous release for upgrade check
         run: |
           python -m pip install --upgrade pip
           python -m pip install --no-deps --index-url https://pypi.org/simple/ kkt-hardnet==1.0.2
-          python .github/scripts/package_install.py --version "${{ needs.build.outputs.version }}"
-          python .github/scripts/package_smoke.py --version "${{ needs.build.outputs.version }}"
+      - name: Install the previous distribution, then upgrade from PyPI
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ needs.build.outputs.version }}"

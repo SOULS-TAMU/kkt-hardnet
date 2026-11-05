@@ -1,0 +1,26 @@
+name: Bug report
+description: Report unexpected behavior with a reproducible example
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "For vulnerabilities, use the private reporting link in SECURITY.md. Do not include credentials or private datasets."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Package, Python, JAX and OS versions; CPU/GPU and optional integrations
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Small runnable example, expected behavior and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Traceback or numerical discrepancy, including tolerance and random seed

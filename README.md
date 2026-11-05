@@ -2,6 +2,9 @@
 
 **Learn surrogate, inverse and optimization models with hard constraint projections in JAX.**
 
+[![PyPI](https://img.shields.io/pypi/v/kkt-hardnet)](https://pypi.org/project/kkt-hardnet/)
+[![Documentation](https://readthedocs.org/projects/kkthn/badge/?version=latest)](https://kkthn.readthedocs.io/en/latest/)
+
 [![CI](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Amain)
 [![Validation](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml?query=branch%3Amain)
 [![CodeQL](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/codeql.yml?query=branch%3Amain)
@@ -193,3 +196,5 @@ For the method, also cite
 in [AUTHORS](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/AUTHORS) and [NOTICE](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/NOTICE).
 
 [Changelog](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CHANGELOG.md) · [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
+
+Measured source structure and existing quality limits are documented in [Quality](docs/QUALITY.md).

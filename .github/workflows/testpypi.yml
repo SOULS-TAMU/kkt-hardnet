@@ -48,9 +48,12 @@ jobs:
           artifact-directory: dist
           tag: v${{ steps.metadata.outputs.version }}
       - name: Check installed candidate before upload
-        run: |
-          python .github/scripts/package_install.py --testpypi --version "${{ steps.metadata.outputs.version }}" --local-dir dist
-          python .github/scripts/package_smoke.py --distribution kkthn --version "${{ steps.metadata.outputs.version }}"
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ steps.metadata.outputs.version }}"
+          index: testpypi
+          local-directory: dist
+          smoke-distribution: kkthn
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-distributions
@@ -98,10 +101,11 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install published stack wheels and run real examples
-        run: |
-          python -m pip install --upgrade pip
-          python .github/scripts/package_install.py --testpypi --version "${{ needs.build.outputs.version }}"
-          python .github/scripts/package_smoke.py --distribution kkthn --version "${{ needs.build.outputs.version }}"
+        uses: SOULS-TAMU/Ohagi/.github/actions/package-check@bdd278e9633990e879c5fdefc0c4da2fa5d47298
+        with:
+          version: "${{ needs.build.outputs.version }}"
+          index: testpypi
+          smoke-distribution: kkthn
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:

@@ -70,9 +70,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
-      - run: python -m pip install -r .github/validation/requirements.txt
-      - run: npx --yes jscpd@5.4.2 --reporters json --output quality-duplication --min-tokens 80 --min-lines 6 --silent src
-      - run: python .github/scripts/quality_metrics.py quality-duplication/jscpd-report.json
+      - uses: SOULS-TAMU/Ohagi/.github/actions/structural-metrics@bdd278e9633990e879c5fdefc0c4da2fa5d47298
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:

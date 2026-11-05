@@ -46,6 +46,7 @@ the task when constructing the model. Start with :doc:`examples/quickstart`.
    changelog
    BUILD
    PUBLISHING
+   QUALITY
 
 Indices and search
 ------------------

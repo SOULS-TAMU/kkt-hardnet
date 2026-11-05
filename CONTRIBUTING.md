@@ -56,3 +56,6 @@ Work targets the `development` branch. See the [validation policy](.github/valid
 for API snapshots, numerical references, measured coverage, dependency boundaries,
 type/complexity/duplication baselines and performance reports. Changes must preserve
 benchmark call signatures and shared OHAGI metadata inference.
+
+See [measured quality and compatibility policies](docs/QUALITY.md) before changing
+validation limits. Report security issues privately using [SECURITY.md](SECURITY.md).
