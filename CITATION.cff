@@ -21,5 +21,6 @@ preferred-citation:
       given-names: "M. M. Faruque"
 
 repository-code: "https://github.com/SOULS-TAMU/kkt-hardnet"
-url: "https://github.com/SOULS-TAMU/kkt-hardnet/tree/main"
+url: "https://github.com/SOULS-TAMU/kkt-hardnet/releases/tag/v2.0.0"
 version: "2.0.0"
+date-released: "2026-11-05"

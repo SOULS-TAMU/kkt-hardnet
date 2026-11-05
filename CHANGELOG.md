@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.0 — Unreleased
+## Unreleased
+
+- Improve repository releases, publishing checks and contribution workflows; runtime APIs and numerical implementations are unchanged.
+
+## 2.0.0 — 2026-11-05
 
 - Promote the shared-engine implementation to `main`; preserve the previous main in `v1.0.1`.
 - Run CI, validation, security and dependency checks on both main and development.
