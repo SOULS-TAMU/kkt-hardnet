@@ -18,6 +18,8 @@ Define parameters, variables, constraints and a learning task through a compact
 frontend. OHAGI supplies one shared training and inference engine; PURIN supplies
 the projection algorithms that enforce the declared constraints.
 
+![KKT-HardNet architecture: a neural backbone and KKT projection produce constrained outputs.](docs/_static/architecture.png)
+
 - **Three tasks:** constrained surrogate modeling, inverse parameter estimation
   and unsupervised optimization.
 - **Differentiable projections:** affine and smooth nonlinear equalities,

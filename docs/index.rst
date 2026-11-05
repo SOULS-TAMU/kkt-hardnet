@@ -6,6 +6,11 @@ Constrained surrogate modeling, inverse estimation and optimization in JAX.
 This guide describes version **2.0.0**. Start with the runnable example,
 then use the guide and API reference for your own problem.
 
+.. image:: _static/architecture.png
+   :alt: KKT-HardNet architecture: a neural backbone and KKT projection produce constrained outputs.
+   :width: 864px
+   :align: center
+
 Quick overview
 --------------
 
