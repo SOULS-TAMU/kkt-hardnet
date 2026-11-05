@@ -144,6 +144,8 @@ types, dependency boundaries and cognitive complexity. See
 
 ## Documentation
 
+**[Read the full documentation](https://kkthn.readthedocs.io/en/latest/)** — installation, tutorials, user guide and API reference.
+
 The full Sphinx guide follows the Read the Docs style: [contents](docs/index.rst),
 [runnable examples](docs/examples/index.rst), [API reference](docs/api/index.rst)
 and [build instructions](docs/BUILD.md).
@@ -156,8 +158,9 @@ and [build instructions](docs/BUILD.md).
 | [Version notes](docs/VERSION.md) | Current development behavior |
 | [Changelog](CHANGELOG.md) | Recorded changes |
 
-The [Read the Docs site](https://kkt-hardnet.readthedocs.io/en/latest/) hosts the
-user guide and API reference. Previous documentation is preserved in the
+The independent KKTHN site above documents version 2.0.0. The previous
+[kkt-hardnet site](https://kkt-hardnet.readthedocs.io/en/latest/) is maintained
+separately; previous documentation sources are preserved in the
 [v1.0.1 archive](https://github.com/SOULS-TAMU/kkt-hardnet/tree/v1.0.1/docs).
 
 ## Contributing

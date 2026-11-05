@@ -16,6 +16,7 @@ authors = [{name = "SOULS-TAMU contributors"}]
 keywords = ["jax", "constrained-learning", "differentiable-optimization"]
 
 [project.urls]
+Documentation = "https://kkthn.readthedocs.io/en/latest/"
 Homepage = "https://github.com/SOULS-TAMU/kkt-hardnet/tree/main"
 Repository = "https://github.com/SOULS-TAMU/kkt-hardnet"
 Issues = "https://github.com/SOULS-TAMU/kkt-hardnet/issues"

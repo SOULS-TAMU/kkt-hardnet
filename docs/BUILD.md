@@ -31,3 +31,10 @@ does not itself establish a published package release.
 Read the Docs can provide pull-request previews when enabled for the project.
 GitHub validation also uploads a complete HTML preview artifact. See
 [documentation versioning](https://docs.readthedocs.com/platform/stable/versions.html).
+
+## Hosted documentation
+
+The current guide is published at [kkthn.readthedocs.io](https://kkthn.readthedocs.io/en/latest/).
+The Read the Docs project builds the repository default branch, `main`; a
+GitHub push webhook requests subsequent builds. GitHub Actions separately
+checks the strict HTML build and executes the downloadable examples.
