@@ -3,7 +3,7 @@
 **Learn surrogate, inverse and optimization models with hard constraint projections in JAX.**
 
 [![PyPI](https://img.shields.io/pypi/v/kkt-hardnet)](https://pypi.org/project/kkt-hardnet/)
-[![Documentation](https://readthedocs.org/projects/kkthn/badge/?version=latest)](https://kkthn.readthedocs.io/en/latest/)
+[![Documentation](https://img.shields.io/readthedocs/kkthn/latest?logo=readthedocs&label=docs)](https://kkthn.readthedocs.io/en/latest/)
 
 [![CI](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/ci.yml?query=branch%3Amain)
 [![Validation](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/validation.yml?query=branch%3Amain)
