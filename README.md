@@ -11,7 +11,7 @@
 [![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Amain)
 [![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-main/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-main)
 
-[![Python 3.10â€“3.15](https://img.shields.io/badge/Python-3.10%E2%80%933.15-3776AB?logo=python&logoColor=white)](.github/workflows/release.yml)
+[![Python 3.10–3.15](https://img.shields.io/badge/Python-3.10%E2%80%933.15-3776AB?logo=python&logoColor=white)](.github/workflows/release.yml)
 [![CPU platforms](https://img.shields.io/badge/CPU-Linux%20%7C%20Windows%20%7C%20macOS-555555)](.github/workflows/ci.yml)
 [![JAX](https://img.shields.io/badge/Powered_by-JAX-8A2BE2)](https://docs.jax.dev/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
@@ -30,7 +30,7 @@ the projection algorithms that enforce the declared constraints.
 - **Flexible backbones:** functional JAX networks, custom adapters and optional Flax.
 - **Reusable deployment:** export once, load from `metadata.json`, and predict repeatedly.
 
-[Installation](#installation) Â· [Basic API](#basic-api) Â· [Load and predict](#load-and-predict) Â· [Documentation](#documentation) Â· [Contributing](#contributing) Â· [Citation](#citation)
+[Installation](#installation) · [Basic API](#basic-api) · [Load and predict](#load-and-predict) · [Documentation](#documentation) · [Contributing](#contributing) · [Citation](#citation)
 
 ## Installation
 
@@ -140,7 +140,7 @@ parameter observations. A single CSV may contain both sets of columns.
 
 ## Compatibility and validation
 
-The PyPI CPU installation matrix covers **Python 3.10â€“3.15** on Linux, Windows and macOS,
+The PyPI CPU installation matrix covers **Python 3.10–3.15** on Linux, Windows and macOS,
 plus Linux ARM64 on Python 3.13. It uses current compatible JAX releases;
 regular CI additionally tests JAX 0.6.2 on Python 3.12. See the [release workflow](.github/workflows/release.yml)
 for exact environments; accelerator installation follows the
@@ -158,7 +158,7 @@ types, dependency boundaries and cognitive complexity. See
 
 ## Documentation
 
-**[Read the full documentation](https://kkthn.readthedocs.io/en/latest/)** â€” installation, tutorials, user guide and API reference.
+**[Read the full documentation](https://kkthn.readthedocs.io/en/latest/)** — installation, tutorials, user guide and API reference.
 
 The full Sphinx guide follows the Read the Docs style: [contents](docs/index.rst),
 [runnable examples](docs/examples/index.rst), [API reference](docs/api/index.rst)
@@ -195,6 +195,6 @@ For the method, also cite
 [Apache License 2.0](LICENSE). Authorship and upstream attribution are recorded
 in [AUTHORS](AUTHORS) and [NOTICE](NOTICE).
 
-[Changelog](CHANGELOG.md) Â· [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
+[Changelog](CHANGELOG.md) · [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
 
 Measured source structure and existing quality limits are documented in [Quality](docs/QUALITY.md).
