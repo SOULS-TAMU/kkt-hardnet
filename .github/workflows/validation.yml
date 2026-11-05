@@ -110,7 +110,7 @@ jobs:
       - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
         with:
           args: >-
-            --no-progress --max-retries 3 --retry-wait-time 2 --timeout 30
+            --no-progress --max-concurrency 4 --max-retries 5 --retry-wait-time 3 --timeout 60
             --exclude '^https://img.shields.io/'
             --exclude '^https://raw.githubusercontent.com/'
             --exclude '^https://github.com/.*/actions/'

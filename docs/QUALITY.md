@@ -12,7 +12,7 @@ update changes no source files, so these values must remain identical afterward.
 | Static import cycles | 1 | No new cycles |
 | Duplicate lines | 8 | No new duplicate fingerprints |
 | Duplicate lines (%) | 0.18% | No increase |
-| Maximum cognitive complexity | 15 | New functions ≤15; existing scores cannot increase |
+| Maximum cognitive complexity | 15 | New functions â‰¤15; existing scores cannot increase |
 | Mypy diagnostics | 0 | No new diagnostics |
 | Functions measured | 126 | Informational |
 
@@ -36,7 +36,7 @@ Changing numerical code to address that debt requires a separate, reviewed chang
 
 ## Reproduce and inspect
 
-Run the commands in [the validation policy](../.github/validation/README.md).
+Run the commands in [the validation policy](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/validation/README.md).
 The Validation workflow uploads `quality-results.json` and
 `quality-duplication/jscpd-report.json` as `code-quality-metrics`.
 The CI workflow publishes measured coverage separately. Workflow badges show
