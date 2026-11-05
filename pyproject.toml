@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kkt-hardnet"
 version = "2.0.0"
-description = "KKTHN frontend on shared OHAGI components"
+description = "Hard constraint neural networks for surrogate modeling, inverse estimation and optimization in JAX"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["ohagi>=1.0.0,<2.0.0", "purin>=1.0.0,<2.0.0"]
@@ -14,6 +14,19 @@ license = "Apache-2.0"
 license-files = ["LICENSE*", "NOTICE"]
 authors = [{name = "SOULS-TAMU contributors"}]
 keywords = ["jax", "constrained-learning", "differentiable-optimization"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 [project.urls]
 Documentation = "https://kkthn.readthedocs.io/en/latest/"

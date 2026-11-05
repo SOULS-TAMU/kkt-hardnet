@@ -4,3 +4,6 @@ include CITATION.bib
 
 recursive-include .github/scripts *.py
 recursive-include .github/validation *.json *.md *.txt
+
+recursive-include docs *.rst *.md *.py *.css *.html *.json *.txt *.png
+recursive-include assets *.png *.svg

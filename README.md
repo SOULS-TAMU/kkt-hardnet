@@ -8,17 +8,17 @@
 [![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Amain)
 [![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-main/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-main)
 
-[![Python 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-3776AB?logo=python&logoColor=white)](.github/workflows/ci.yml)
-[![CPU platforms](https://img.shields.io/badge/CPU-Linux%20%7C%20Windows%20%7C%20macOS-555555)](.github/workflows/ci.yml)
+[![Python 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-3776AB?logo=python&logoColor=white)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
+[![CPU platforms](https://img.shields.io/badge/CPU-Linux%20%7C%20Windows%20%7C%20macOS-555555)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
 [![JAX](https://img.shields.io/badge/Powered_by-JAX-8A2BE2)](https://docs.jax.dev/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
-[![Citation: BibTeX](https://img.shields.io/badge/Cite-BibTeX-6F4E37)](CITATION.bib)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/LICENSE)
+[![Citation: BibTeX](https://img.shields.io/badge/Cite-BibTeX-6F4E37)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CITATION.bib)
 
 Define parameters, variables, constraints and a learning task through a compact
 frontend. OHAGI supplies one shared training and inference engine; PURIN supplies
 the projection algorithms that enforce the declared constraints.
 
-![KKT-HardNet architecture: a neural backbone and KKT projection produce constrained outputs.](docs/_static/architecture.png)
+![KKT-HardNet architecture: a neural backbone and KKT projection produce constrained outputs.](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/main/docs/_static/architecture.png)
 
 - **Three tasks:** constrained surrogate modeling, inverse parameter estimation
   and unsupervised optimization.
@@ -35,14 +35,14 @@ This README documents the **main branch (version 2.0.0)**. Install its source pa
 in dependency order with Python 3.10 or newer:
 
 ```shell
-python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@development"
-python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@development"
+python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@main"
+python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@main"
 python -m pip install "kkt-hardnet @ git+https://github.com/SOULS-TAMU/kkt-hardnet.git@main"
 ```
 
 The distribution name is `kkt-hardnet`; the Python import is `kkthn`.
 For editable installs and optional Flax/Orbax integrations, see
-[installation options](docs/INSTALL.md).
+[installation options](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/INSTALL.md).
 
 ## Basic API
 
@@ -82,7 +82,7 @@ prediction = model.predict([0.7])
 | Inverse estimation | Observations and unknown coefficients | `model.estimate()` |
 
 Select `type="optimization"` or `type="parameter_estimation"` when constructing
-those tasks. See [problem definitions](docs/PROBLEM.md) for current observation-loss,
+those tasks. See [problem definitions](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/PROBLEM.md) for current observation-loss,
 unknown-variable, backbone and projection interfaces.
 
 ## Load and predict
@@ -130,7 +130,7 @@ parameter observations. A single CSV may contain both sets of columns.
 
 The CPU CI matrix covers **Python 3.10–3.14** on Linux, Windows and macOS,
 plus Linux ARM64 on Python 3.13. It exercises current compatible JAX releases
-and JAX 0.6.2 on Python 3.12. See the [workflow](.github/workflows/ci.yml)
+and JAX 0.6.2 on Python 3.12. See the [workflow](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
 for exact environments; accelerator installation follows the
 [JAX guide](https://docs.jax.dev/en/latest/installation.html).
 
@@ -142,23 +142,23 @@ for exact environments; accelerator installation follows the
 
 The frontend validation policy also checks API compatibility, checkpoint resume,
 types, dependency boundaries and cognitive complexity. See
-[validation details](.github/validation/README.md).
+[validation details](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/validation/README.md).
 
 ## Documentation
 
 **[Read the full documentation](https://kkthn.readthedocs.io/en/latest/)** — installation, tutorials, user guide and API reference.
 
-The full Sphinx guide follows the Read the Docs style: [contents](docs/index.rst),
-[runnable examples](docs/examples/index.rst), [API reference](docs/api/index.rst)
-and [build instructions](docs/BUILD.md).
+The full Sphinx guide follows the Read the Docs style: [contents](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/index.rst),
+[runnable examples](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/examples/index.rst), [API reference](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/api/index.rst)
+and [build instructions](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/BUILD.md).
 
 | Guide | Contents |
 | --- | --- |
-| [Installation](docs/INSTALL.md) | Source installs, optional integrations and packaging |
-| [Problem definitions](docs/PROBLEM.md) | Modeling, backbones and training |
-| [Inference](docs/INFERENCE.md) | Export, loading and repeated prediction |
-| [Version notes](docs/VERSION.md) | Current development behavior |
-| [Changelog](CHANGELOG.md) | Recorded changes |
+| [Installation](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/INSTALL.md) | Source installs, optional integrations and packaging |
+| [Problem definitions](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/PROBLEM.md) | Modeling, backbones and training |
+| [Inference](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/INFERENCE.md) | Export, loading and repeated prediction |
+| [Version notes](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/docs/VERSION.md) | Current development behavior |
+| [Changelog](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CHANGELOG.md) | Recorded changes |
 
 The independent KKTHN site above documents version 2.0.0. The previous
 [kkt-hardnet site](https://kkt-hardnet.readthedocs.io/en/latest/) is maintained
@@ -168,19 +168,19 @@ separately; previous documentation sources are preserved in the
 ## Contributing
 
 Bug reports, examples and focused pull requests are welcome. Read
-[CONTRIBUTING.md](CONTRIBUTING.md) for setup, numerical checks and compatibility
+[CONTRIBUTING.md](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CONTRIBUTING.md) for setup, numerical checks and compatibility
 requirements. Keep generated results, environments and checkpoints out of Git.
 
 ## Citation
 
-Use [CITATION.bib](CITATION.bib) for a copyable BibTeX entry or GitHub's
-**Cite this repository** menu for [citation metadata](CITATION.cff).
+Use [CITATION.bib](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CITATION.bib) for a copyable BibTeX entry or GitHub's
+**Cite this repository** menu for [citation metadata](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CITATION.cff).
 For the method, also cite
 [Physics-informed neural networks with hard nonlinear equality and inequality constraints](https://doi.org/10.1016/j.compchemeng.2025.109418).
 
 ## License
 
-[Apache License 2.0](LICENSE). Authorship and upstream attribution are recorded
-in [AUTHORS](AUTHORS) and [NOTICE](NOTICE).
+[Apache License 2.0](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/LICENSE). Authorship and upstream attribution are recorded
+in [AUTHORS](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/AUTHORS) and [NOTICE](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/NOTICE).
 
-[Changelog](CHANGELOG.md) · [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
+[Changelog](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/CHANGELOG.md) · [Report an issue](https://github.com/SOULS-TAMU/kkt-hardnet/issues)
