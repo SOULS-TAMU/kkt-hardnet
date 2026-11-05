@@ -1,4 +1,4 @@
-"""Install exact stack wheels from TestPyPI, with third-party dependencies from PyPI."""
+"""Install exact stack wheels from PyPI or TestPyPI and verify dependencies."""
 
 import argparse
 from email.parser import BytesParser
@@ -9,7 +9,7 @@ import sys
 import tempfile
 import zipfile
 
-TARGET = "kkthn"
+TARGET = "kkt-hardnet"
 DEPENDENCIES = {"purin": "1.0.0", "ohagi": "1.0.0"}
 
 
@@ -28,8 +28,15 @@ def main():
     parser.add_argument(
         "--local-dir", type=Path, help="Use matching local wheels before downloading"
     )
+    parser.add_argument(
+        "--testpypi", action="store_true", help="Use the isolated testing index"
+    )
     args = parser.parse_args()
-    requirements = dict(DEPENDENCIES, **{TARGET: args.version})
+    target = "kkthn" if args.testpypi and TARGET == "kkt-hardnet" else TARGET
+    index = (
+        "https://test.pypi.org/simple/" if args.testpypi else "https://pypi.org/simple/"
+    )
+    requirements = dict(DEPENDENCIES, **{target: args.version})
     with tempfile.TemporaryDirectory(prefix="stack-wheels-") as directory:
         downloads = Path(directory)
         wheels = []
@@ -59,7 +66,7 @@ def main():
                         "--no-deps",
                         "--only-binary=:all:",
                         "--index-url",
-                        "https://test.pypi.org/simple/",
+                        index,
                         "--dest",
                         str(downloads),
                         name + "==" + version,
@@ -71,7 +78,7 @@ def main():
                     for path in downloads.glob("*.whl")
                     if wheel_identity(path) == (name, version)
                 )
-                origins[name] = "TestPyPI"
+                origins[name] = "TestPyPI" if args.testpypi else "PyPI"
             wheels.append(str(wheel))
         subprocess.run(
             [

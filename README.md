@@ -8,7 +8,7 @@
 [![Dependency review](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml/badge.svg?branch=main)](https://github.com/SOULS-TAMU/kkt-hardnet/actions/workflows/dependency-review.yml?query=branch%3Amain)
 [![Coverage](https://raw.githubusercontent.com/SOULS-TAMU/kkt-hardnet/codex/coverage-main/coverage.svg)](https://github.com/SOULS-TAMU/kkt-hardnet/tree/codex/coverage-main)
 
-[![Python 3.10–3.14](https://img.shields.io/badge/Python-3.10%E2%80%933.14-3776AB?logo=python&logoColor=white)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
+[![Python 3.10–3.15](https://img.shields.io/badge/Python-3.10%E2%80%933.15-3776AB?logo=python&logoColor=white)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/release.yml)
 [![CPU platforms](https://img.shields.io/badge/CPU-Linux%20%7C%20Windows%20%7C%20macOS-555555)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
 [![JAX](https://img.shields.io/badge/Powered_by-JAX-8A2BE2)](https://docs.jax.dev/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue)](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/LICENSE)
@@ -31,13 +31,10 @@ the projection algorithms that enforce the declared constraints.
 
 ## Installation
 
-This README documents the **main branch (version 2.0.0)**. Install its source packages
-in dependency order with Python 3.10 or newer:
+Requires **Python 3.10 or newer**. Install from PyPI:
 
 ```shell
-python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@main"
-python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@main"
-python -m pip install "kkt-hardnet @ git+https://github.com/SOULS-TAMU/kkt-hardnet.git@main"
+python -m pip install kkt-hardnet
 ```
 
 The distribution name is `kkt-hardnet`; the Python import is `kkthn`.
@@ -128,9 +125,9 @@ parameter observations. A single CSV may contain both sets of columns.
 
 ## Compatibility and validation
 
-The CPU CI matrix covers **Python 3.10–3.14** on Linux, Windows and macOS,
-plus Linux ARM64 on Python 3.13. It exercises current compatible JAX releases
-and JAX 0.6.2 on Python 3.12. See the [workflow](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/ci.yml)
+The PyPI CPU installation matrix covers **Python 3.10–3.15** on Linux, Windows and macOS,
+plus Linux ARM64 on Python 3.13. It uses current compatible JAX releases;
+regular CI additionally tests JAX 0.6.2 on Python 3.12. See the [release workflow](https://github.com/SOULS-TAMU/kkt-hardnet/blob/main/.github/workflows/release.yml)
 for exact environments; accelerator installation follows the
 [JAX guide](https://docs.jax.dev/en/latest/installation.html).
 

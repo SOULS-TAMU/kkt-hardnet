@@ -1,3 +1,64 @@
+# Production PyPI publishing
+
+Distribution: **`kkt-hardnet`**. Import: **`kkthn`**. Version: **2.0.0**.
+
+## Trusted Publisher
+
+Configure production PyPI to trust `SOULS-TAMU/kkt-hardnet`, workflow `release.yml`,
+environment `pypi`. The GitHub environment permits only `main` deployments.
+Use the existing project's Publishing settings for `kkt-hardnet`; use pending
+publishers for the first PURIN, OHAGI and DAEHN releases. No long-lived API token
+is stored in these repositories.
+
+## Release sequence
+
+1. Publish PURIN, then OHAGI, then KKTHN and DAEHN.
+2. Dispatch **PyPI release** manually on `main`.
+3. The workflow builds a source distribution and a wheel from it, validates
+   metadata, and checks the installed candidate with actual numerical examples.
+4. Python 3.15 candidate checks must pass on Linux, Windows and macOS before upload.
+5. After upload, clean installations from **production PyPI only** are checked on
+   Python 3.10–3.15 across Linux, Windows and macOS, plus Linux ARM64 on Python 3.13.
+   Every installation runs `pip check` and the real projection/training/export
+   examples outside the source checkout.
+6. Review all jobs and their installation reports before announcing the release.
+
+Build artifacts are not overwritten. Re-run failed verification jobs rather than
+re-uploading an already published filename. A corrected package needs a new version.
+
+## User installation
+
+```shell
+python -m pip install kkt-hardnet
+```
+
+OHAGI and PURIN are resolved automatically for frontend installs. Production
+packages use their canonical names; the TestPyPI-only `kkthn` alias is not used.
+To verify a release from a repository checkout in a clean environment:
+
+```shell
+python .github/scripts/package_install.py --version 2.0.0
+python .github/scripts/package_smoke.py --version 2.0.0
+```
+
+## Optional Orbax on Windows
+
+Recent Orbax wheels contain deeply nested compatibility fixtures. If pip reports
+Windows path-length errors, an extended-length interpreter path can install the
+optional dependency without changing system settings:
+
+```powershell
+$envPython = (Resolve-Path .venv\Scripts\python.exe).Path
+& ("\\?\" + $envPython) -m pip install orbax-checkpoint
+```
+
+The base packages do not require Flax or Orbax. Numerical checkpoint and resume
+checks cover both the functional JAX and optional Flax backbones.
+
+[PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/)
+
+---
+
 # TestPyPI publishing
 
 The production distribution is `kkt-hardnet`; the Python import is `kkthn`.
@@ -39,8 +100,8 @@ this TestPyPI project with short-lived OIDC credentials. No API token is stored.
 To verify the uploaded version locally in a fresh virtual environment:
 
 ```shell
-python .github/scripts/testpypi_install.py --version 2.0.0
-python .github/scripts/package_smoke.py --version 2.0.0
+python .github/scripts/package_install.py --testpypi --version 2.0.0
+python .github/scripts/package_smoke.py --distribution kkthn --version 2.0.0
 ```
 
 The installer downloads the stack packages from TestPyPI with `--no-deps`, then

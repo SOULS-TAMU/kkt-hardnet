@@ -12,12 +12,13 @@ import sys
 import tempfile
 
 PACKAGE = "kkthn"
-DISTRIBUTION = "kkthn"
+DISTRIBUTION = "kkt-hardnet"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
+    parser.add_argument("--distribution", default=DISTRIBUTION)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     module = importlib.import_module(PACKAGE)
@@ -26,7 +27,7 @@ def main():
         raise RuntimeError(
             "Smoke test imported the checkout instead of an installed wheel"
         )
-    assert version(DISTRIBUTION) == args.version
+    assert version(args.distribution) == args.version
     assert module.__version__ == args.version
     environment = dict(
         os.environ,
@@ -52,8 +53,8 @@ def main():
                 timeout=300,
             )
     report = {
-        "distribution": DISTRIBUTION,
-        "version": version(DISTRIBUTION),
+        "distribution": args.distribution,
+        "version": version(args.distribution),
         "installed_module": str(installed),
         "examples": [path.name for path in scripts],
     }
