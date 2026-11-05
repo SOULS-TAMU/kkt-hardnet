@@ -1,42 +1,27 @@
 # Installation
 
-## Development version
+Use Python 3.10 or newer and an isolated environment. The distribution name is
+`kkt-hardnet`; the Python import is `kkthn`.
 
 ```shell
-python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@9ab708b470c4d9359e57f7bd214b0b5515aa4115"
-python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
-python -m pip install "git+https://github.com/SOULS-TAMU/kkt-hardnet.git@development"
+python -m venv .venv
+# PowerShell: .venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install "purin @ git+https://github.com/SOULS-TAMU/Purin.git@main"
+python -m pip install "ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@main"
+python -m pip install "kkt-hardnet @ git+https://github.com/SOULS-TAMU/kkt-hardnet.git@main"
+python -c "import kkthn; print(kkthn.__version__)"
 ```
 
-For an editable checkout, first install the shared dependencies above, then run
-`python -m pip install -e ".[dev]"` from this repository's root.
-Published releases may differ from this development branch.
+These source commands select the current shared-stack implementation. Package-index
+publishing is a separate release step. For a local editable installation, install
+the sibling packages in dependency order using `python -m pip install -e <folder>`.
+Start with CPU execution and choose supported JAX/CUDA dependencies if needed.
 
-## Optional dependencies
+## Optional integrations
 
-```shell
-python -m pip install "ohagi[flax,orbax] @ git+https://github.com/SOULS-TAMU/Ohagi.git@e28f687e840d6840b259e687323029c3cc49bd59"
-```
-
-Functional JAX backbones are the default. Flax supplies an optional backbone
-adapter; Orbax stores training state for resumption. Neither is needed to load
-an exported deployment bundle.
-
-## Platforms
-
-Python **3.10–3.14** is tested on **Linux, Windows and macOS**, with additional
-Linux ARM64 and pinned JAX baseline checks. Package installation and optional
-Flax/Orbax integrations are tested across all three OSes. These are CPU checks;
-accelerator support follows the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html).
-
-## Build
-
-```shell
-python -m pip install build twine
-python -m build
-python -m twine check --strict dist/*
-```
-
-Packaging uses `src/` and `pyproject.toml`.
-
-[Back to README](../README.md)
+From a local stack checkout, install `python -m pip install "./ohagi[flax,orbax]"`
+for optional Flax backbones and Orbax training checkpoints. OHAGI also offers
+`optax`, `plotting` and `export` extras. Functional JAX backbones remain the default.
+Deploying a compatible frozen JAX graph does not require Flax or Orbax.

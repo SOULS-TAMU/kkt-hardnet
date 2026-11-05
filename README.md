@@ -79,8 +79,9 @@ prediction = model.predict([0.7])
 | Unsupervised optimization | Parameters and a symbolic objective | `model.optimize()` |
 | Inverse estimation | Observations and unknown coefficients | `model.estimate()` |
 
-See [problem definitions](docs/PROBLEM.md) for objective functions, unknown
-parameters, backbone choices and projection configuration.
+Select `type="optimization"` or `type="parameter_estimation"` when constructing
+those tasks. See [problem definitions](docs/PROBLEM.md) for current observation-loss,
+unknown-variable, backbone and projection interfaces.
 
 ## Load and predict
 
@@ -143,6 +144,10 @@ types, dependency boundaries and cognitive complexity. See
 
 ## Documentation
 
+The full Sphinx guide follows the Read the Docs style: [contents](docs/index.rst),
+[runnable examples](docs/examples/index.rst), [API reference](docs/api/index.rst)
+and [build instructions](docs/BUILD.md).
+
 | Guide | Contents |
 | --- | --- |
 | [Installation](docs/INSTALL.md) | Source installs, optional integrations and packaging |
@@ -151,9 +156,9 @@ types, dependency boundaries and cognitive complexity. See
 | [Version notes](docs/VERSION.md) | Current development behavior |
 | [Changelog](CHANGELOG.md) | Recorded changes |
 
-The [historical tutorials](https://kkt-hardnet.readthedocs.io/en/latest/)
-provide additional modeling examples. Use this branch's guides for the current
-shared-engine installation and model format.
+The [Read the Docs site](https://kkt-hardnet.readthedocs.io/en/latest/) hosts the
+user guide and API reference. Previous documentation is preserved in the
+[v1.0.1 archive](https://github.com/SOULS-TAMU/kkt-hardnet/tree/v1.0.1/docs).
 
 ## Contributing
 

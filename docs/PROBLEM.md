@@ -28,7 +28,7 @@ Custom JAX backbones retain the existing initialization/application interface.
 ## Unsupervised optimization
 
 ```python
-model = KKTHardNet(name="allocation", train={"epochs": 100})
+model = KKTHardNet("optimization", name="allocation", train={"epochs": 100})
 p = model.add_parameter(["p"])
 y = model.add_variable(["u", "v"])
 model.objective = 0.5 * (y.u**2 + y.v**2)
@@ -37,20 +37,30 @@ model.dataset(parameters="data.csv")  # Header includes p.
 result = model.optimize()
 ```
 
-## Inverse parameter estimation
+## Parameter estimation from partial observations
+
+Declare unknowns among the predicted variables and identify which outputs are
+observed. Select the parameter-estimation task explicitly:
 
 ```python
-model = KKTHardNet(name="inverse", train={"epochs": 100})
-a = model.add_inverse_parameter(["a"], init_value=[1.0])
-p = model.add_parameter(["p"])
-y = model.add_variable(["u"])
-model.constraints.add(y.u == a.a * p.p)
+projection = Projection(method="fischer-burmeister-reduced")
+x = projection.add_parameter(["p"])
+y = projection.add_variable(["a", "u"])
+projection.constraints.add(y.u == y.a * x.p)
+model = KKTHardNet(
+    "parameter_estimation", MLP(hidden_sizes=(32, 32)),
+    Loss.parameter_estimation(observed_variables=("u",)), projection,
+    name="inverse", train={"epochs": 100, "batch_size": 32},
+)
 model.dataset(parameters="observations.csv", variables="observations.csv")
 result = model.estimate()
 ```
 
-The observations CSV contains `p,u`. Choose observations that identify the
-unknown coefficients; constraints alone do not guarantee identifiability.
+The observations CSV contains `p,u`; `a` is an unobserved predicted variable.
+This interface does not create one globally shared scalar coefficient across
+all samples. Identifiability needs sufficient observations and constraints.
+The former `add_inverse_parameter(...)` builder is not exposed by the current
+package; see the [migration guide](MIGRATION.md).
 
 ## Checkpoint and resume
 
@@ -63,4 +73,4 @@ Keep the seed, batching and phase settings consistent for reproducibility.
 Training returns history and paths including `result["metadata_path"]`. Keep
 referenced weights and formulation files when moving a full-model bundle.
 
-[Back to README](../README.md)
+[Documentation home](index.rst)

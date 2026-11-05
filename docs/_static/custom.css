@@ -1,0 +1,7 @@
+/* Familiar Read the Docs layout, with room for API signatures. */
+.wy-nav-content { max-width: 1050px; }
+.rst-content code { overflow-wrap: anywhere; }
+.rst-content dl.py > dt { max-width: 100%; overflow-x: auto; }
+.rst-content .wy-table-responsive table td { white-space: normal; }
+.scroll-box { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 1em; background: #f9f9f9; }
+.rst-content pre { font-size: 13px; line-height: 1.55; }

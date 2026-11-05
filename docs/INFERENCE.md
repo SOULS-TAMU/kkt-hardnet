@@ -36,4 +36,4 @@ Full models use `ohagi_model_v1` and `ohagi_pytree_npz_v1`; deployment uses
 is supported. JAX export uses StableHLO internally, without a separate native
 compiler or standalone StableHLO deployment option.
 
-[Back to README](../README.md)
+[Documentation home](index.rst)

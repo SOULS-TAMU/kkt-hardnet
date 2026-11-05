@@ -1,0 +1,9 @@
+Sphinx>=8.2,<9
+sphinx-rtd-theme>=3.1,<4
+myst-parser>=4,<5
+pybtex>=0.26,<0.27
+PyYAML>=6,<7
+# CPU autodoc baseline; runtime CI tests broader JAX configurations.
+jax[cpu]==0.6.2
+purin @ git+https://github.com/SOULS-TAMU/Purin.git@efb192536f6e0e9117f4e25850ff4439d2dc9d1a
+ohagi @ git+https://github.com/SOULS-TAMU/Ohagi.git@39fe90ee8f7a5ebf30c964ff7b88e3220d677322
